@@ -1,4 +1,4 @@
-import { Layout, Menu, Button, Row } from "antd";
+import { Layout, Menu, Button, Row, Modal } from "antd";
 import "antd/dist/reset.css";
 import { Outlet, NavLink } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
@@ -11,11 +11,12 @@ import {
 } from "@ant-design/icons";
 const { Header, Sider, Content, Footer } = Layout;
 function DashboardLayout() {
-  const [modalOpen , setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
-   const handleLogout = () => {
-    localStorage.removeItem("token"); 
-    localStorage.removeItem("user"); 
+  const user = JSON.parse(localStorage.getItem("user")) || { name: "Guest" };
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/login");
   };
   return (
@@ -70,10 +71,12 @@ function DashboardLayout() {
           <Row justify="end" align="middle" style={{ height: "100%" }}>
             <Button
               type="default"
-              onClick={() => setModalOpen(true)} // ✅ open modal
+              onClick={() => setModalOpen(true)}
               style={{ border: "1px solid #d9d9d9" }}
             >
-              <UserOutlined /> Logout
+              <span style={{ marginRight: 15 }}>
+                <UserOutlined /> {user.name}
+              </span>
             </Button>
           </Row>
         </Header>
@@ -95,12 +98,20 @@ function DashboardLayout() {
           Todo App @2025
         </Footer>
       </Layout>
+      <Modal
+        title="Confirm Logout"
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        footer={[
+          <Button key="logout" danger onClick={handleLogout}>
+            Logout
+          </Button>,
+        ]}
+      >
+        <p>Are you sure you want to logout?</p>
+      </Modal>
     </Layout>
   );
 }
 
 export default DashboardLayout;
-
-
-
-

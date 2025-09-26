@@ -27,7 +27,8 @@ function Todo() {
   const pageSize = 8;
   const token = localStorage.getItem("token");
 
-  useEffect(() => {  // jb comp render hoga todos load hojayengay or tble may show hongay
+  useEffect(() => {
+    // jb comp render hoga todos load hojayengay or tble may show hongay
     GetTodoss();
   }, []);
 
@@ -58,7 +59,7 @@ function Todo() {
     try {
       const dateSet = {
         ...values,
-        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"),// date ko parse karkay string format may karega
+        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"), // date ko parse karkay string format may karega
       };
 
       const res = await axios.post(
@@ -104,33 +105,39 @@ function Todo() {
   };
 
   const columns = [
-    { title: "Id", dataIndex: "Id", key: "Id" },
-    { title: "Title", dataIndex: "title", key: "title" },
-    { title: "Description", dataIndex: "description", key: "description" },
-    { title: "Due Date", dataIndex: "duedate", key: "duedate" },
-    { title: "Color", dataIndex: "color", key: "color" },
-    { title: "Priority", dataIndex: "priorty", key: "priorty" },
     {
-      title: "Actions",
-      key: "actions",
-      render: (_, record) => {
-        console.log("Record clicked:", record);
-        return (
-          <Space>
-            <Popconfirm
-              title="Are you sure to delete this todo"
-              onConfirm={() => TodoDelete(record.id)}
-
-              okText="Yes"
-              cancelText="No"
-            >
-              <Button type="text" danger>
-                Delete
-              </Button>
-            </Popconfirm>
-          </Space>
-        );
-      },
+      title: "Title",
+      dataIndex: "title",
+      key: "title",
+    },
+    {
+      title: "Description",
+      dataIndex: "description",
+      key: "description",
+    },
+    {
+      title: "Color",
+      dataIndex: "color",
+      key: "color",
+      render: (color) => (
+        <span
+          style={{
+            display: "inline-block",
+            padding: "4px 18px",
+            borderRadius: "12px",
+            backgroundColor: color,
+            color: "#000000ff",
+            textTransform: "capitalize",
+          }}
+        > 
+          {color}
+        </span>
+      ),
+    },
+    {
+      title: "Priority",
+      dataIndex: "priorty",
+      key: "priorty",
     },
   ];
 
@@ -147,12 +154,7 @@ function Todo() {
           Add Todo
         </Button>
 
-        <Modal
-          title="Add Todo"
-          open={open}
-          onCancel={() => setOpen(false)}
-          footer={null}
-        >
+        <Modal title="Add Todo" open={open} closable={false} footer={null}>
           <Form
             form={form}
             layout="vertical"
@@ -176,13 +178,50 @@ function Todo() {
             </Form.Item>
 
             <Form.Item name="color" label="Color">
-              <Select
-                options={[
-                  { value: "red", label: "Red" },
-                  { value: "yellow", label: "Yellow" },
-                  { value: "green", label: "Green" },
-                ]}
-              />
+              <Select>
+                <Select.Option value="red">
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: "12px",
+                      height: "12px",
+                      backgroundColor: "red",
+                      borderRadius: "50%",
+                      marginRight: "8px",
+                    }}
+                  ></span>
+                  Red
+                </Select.Option>
+
+                <Select.Option value="yellow">
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: "12px",
+                      height: "12px",
+                      backgroundColor: "yellow",
+                      borderRadius: "50%",
+                      marginRight: "8px",
+                    }}
+                  ></span>
+                  Yellow
+                </Select.Option>
+
+                <Select.Option value="green">
+                  <div
+                    style={{
+                      display: "inline-block",
+                      width: "12px",
+                      height: "12px",
+                      backgroundColor: "green",
+                      borderRadius: "50%",
+                      marginRight: "8px",
+                    }}
+                  >
+                    Green
+                  </div>
+                </Select.Option>
+              </Select>
             </Form.Item>
 
             <Form.Item name="priorty" label="Priority">
@@ -196,9 +235,19 @@ function Todo() {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" block>
-                Save
-              </Button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <Button
+                  type="default"
+                  htmlType="button"
+                  onClick={() => setOpen(false)} // <-- yaha onClick use karo
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </Button>
+                <Button type="primary" htmlType="submit" style={{ flex: 1 }}>
+                  Save
+                </Button>
+              </div>
             </Form.Item>
           </Form>
         </Modal>
