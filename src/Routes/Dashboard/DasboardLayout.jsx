@@ -1,31 +1,58 @@
-import { Layout, Menu, Button, Row, Modal } from "antd";
+import { Layout, Menu, Button, Row, Dropdown, Space } from "antd";
 import "antd/dist/reset.css";
-import { Outlet, NavLink } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { NavLink, useNavigate, Routes, Route } from "react-router-dom";
 import {
   DashboardOutlined,
   UserOutlined,
   SettingOutlined,
   CarryOutOutlined,
+  LogoutOutlined,
+  MailOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
+
+// Components
+import Dashboard from "./Dashboard";
+import Todo from "./Todo";
+import User from "./User";
+import Setting from "./Setting";
+
 const { Header, Sider, Content, Footer } = Layout;
+
 function DashboardLayout() {
-  const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user")) || { name: "Guest" };
-  const handleLogout = () => {
+  const user = JSON.parse(localStorage.getItem("user")) || {
+    name: "Guest",
+    email: "N/A",
+    role: "user",
+  };
+
+  const Logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
+
+  const Items = [
+    {
+      key: "email",
+      icon: <MailOutlined />,
+      label: user.email,
+    },
+    {
+      type: "divider",
+    },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Logout",
+      onClick: Logout,
+    },
+  ];
+
   return (
-    <Layout
-      className="app-layout"
-      style={{
-        minHeight: "100vh",
-      }}
-    >
+    <Layout className="app-layout" style={{ minHeight: "100vh" }}>
+      {/* Sidebar */}
       <Sider
         width={240}
         style={{ background: "#fff", borderRight: "1px solid #00000022" }}
@@ -45,11 +72,15 @@ function DashboardLayout() {
               icon: <CarryOutOutlined />,
               label: <NavLink to="/app/todo">Todo</NavLink>,
             },
-            {
-              key: "/app/user",
-              icon: <UserOutlined />,
-              label: <NavLink to="/app/user">User</NavLink>,
-            },
+            ...(user.role === "admin"
+              ? [
+                  {
+                    key: "/app/user",
+                    icon: <UserOutlined />,
+                    label: <NavLink to="/app/user">User</NavLink>,
+                  },
+                ]
+              : []),
             {
               key: "/app/setting",
               icon: <SettingOutlined />,
@@ -59,7 +90,9 @@ function DashboardLayout() {
         />
       </Sider>
 
+      {/* Main Layout */}
       <Layout>
+        {/* Header */}
         <Header
           style={{
             background: "#fff",
@@ -69,20 +102,30 @@ function DashboardLayout() {
           }}
         >
           <Row justify="end" align="middle" style={{ height: "100%" }}>
-            <Button
-              type="default"
-              onClick={() => setModalOpen(true)}
-              style={{ border: "1px solid #d9d9d9" }}
+            <Dropdown
+              menu={{ items: Items }}
+              placement="bottomRight"
+              arrow
+              trigger={["click"]}
             >
-              <span style={{ marginRight: 15 }}>
-                <UserOutlined /> {user.name}
-              </span>
-            </Button>
+              <Button type="default" style={{ border: "1px solid #d9d9d9" }}>
+                <Space>
+                  <UserOutlined />
+                  {user.name || "Guest"}
+                  <DownOutlined />
+                </Space>
+              </Button>
+            </Dropdown>
           </Row>
         </Header>
 
-        <Content>
-          <Outlet />
+        <Content style={{ padding: "15px" }}>
+          <Routes>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="todo" element={<Todo />} />
+            {user.role === "admin" && <Route path="user" element={<User />} />}
+            <Route path="setting" element={<Setting />} />
+          </Routes>
         </Content>
 
         <Footer
@@ -98,18 +141,6 @@ function DashboardLayout() {
           Todo App @2025
         </Footer>
       </Layout>
-      <Modal
-        title="Confirm Logout"
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        footer={[
-          <Button key="logout" danger onClick={handleLogout}>
-            Logout
-          </Button>,
-        ]}
-      >
-        <p>Are you sure you want to logout?</p>
-      </Modal>
     </Layout>
   );
 }

@@ -13,9 +13,9 @@ import {
 } from "recharts";
 function Dashboard() {
   const [completed, setCompleted] = useState(0); // total todos kay count kay lia
-  const [pending, setPending] = useState(0);  // pending todos kay count kay lia
-  const [all, setAll] = useState(0);  // all todos kay count kay lia
-  const [chart, setChart] = useState([]);  //chart kay lia
+  const [pending, setPending] = useState(0); // pending todos kay count kay lia
+  const [all, setAll] = useState(0); // all todos kay count kay lia
+  const [chart, setChart] = useState([]); //chart kay lia
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -25,7 +25,7 @@ function Dashboard() {
           message.error("Unauthorized! Please login again.");
           return;
         }
-        
+
         const completedTodos = await axios.get(
           "http://localhost:3001/api/dashboard/completedTodo",
           { headers: { Authorization: `Bearer ${token}` } }
@@ -37,13 +37,16 @@ function Dashboard() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (pendingTodos.data.status) setPending(pendingTodos.data.data);
-        
-        const allTodos = await axios.get(
-          "http://localhost:3001/api/dashboard/getTodo/",
+
+        const alltodos = await axios.post(
+          "http://localhost:3001/api/todo/read",
+          { page: 1, limit: 10000 }, // large limit to get all todos
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        if (allTodos.data.status) setAll(allTodos.data.data);
-        
+        if (alltodos.data.status) {
+          setAll(alltodos.data.totalTodos); // ya res.data.data.length bhi le sakte ho
+        }
+
         const res = await axios.post(
           "http://localhost:3001/api/dashboard/report",
           {},
@@ -51,15 +54,21 @@ function Dashboard() {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        
+
         const apiData = res.data.data;
+        
+        // const apidata = apiData.january
+        // const apidata = apiData['january']
+
         setChart(
-          Object.keys(apiData).map((month) => ({
+          Object.keys(apiData).map((month) => (
+            {
             month,
             todos: apiData[month],
-          }))
+          }
+        
+        ))
         );
-
       } catch (err) {
         console.error("Error fetching counts:", err);
         message.error("Failed to fetch todo counts");

@@ -1,28 +1,37 @@
-import { Form, Input, Button, Card } from "antd";
+import { Form, Input, Button, Card, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+
 function Login() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+
   const onFinish = async (values) => {
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/login", {
-        email: values.email,
-        password: values.password,
-      });
-      console.log(res)
+      const res = await axios.post(
+        "http://localhost:3001/api/auth/login",
+        values
+      );
+
       if (res.data.status) {
-        localStorage.setItem("token", res.data.data.token);
-        // console.log("token", res.data.data.token)
-        alert("Login Successful");
-        navigate("/app/dashboard")
+        const token = res.data.data.token;
+        console.log("first" + res.data.data.token);
+        localStorage.setItem("token", token);
+        const decoded = jwtDecode(token);
+        localStorage.setItem("user", JSON.stringify(decoded));
+
+        message.success("Login successful!");
+        navigate("/app/dashboard");
       } else {
-        alert(res.data.message);
+        message.error(res.data.message);
       }
-    } catch (error) {
-      console.error(error);
-      alert("Server error");
+    } catch (err) {
+      const msg = err.response?.data?.message || "Something went wrong";
+      console.log(err);
+      message.error(msg);
     }
   };
+
   return (
     <div
       style={{
@@ -43,13 +52,22 @@ function Login() {
           style={{ padding: 10 }}
           onFinish={onFinish}
         >
-          <Form.Item label="Email" name="email">
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[{ required: true, message: "Please enter your email!" }]}
+          >
             <Input placeholder="Enter your email" />
           </Form.Item>
 
-          <Form.Item label="Password" name="password">
+          <Form.Item
+            label="Password"
+            name="password"
+            rules={[{ required: true, message: "Please enter your password!" }]}
+          >
             <Input.Password placeholder="Enter your password" />
           </Form.Item>
+
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
               Login

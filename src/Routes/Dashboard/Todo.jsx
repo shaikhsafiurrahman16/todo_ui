@@ -55,6 +55,58 @@ function Todo() {
     }
   };
 
+  const columns = [
+    { title: "Id", dataIndex: "Id", key: "Id" },
+    { title: "Title", dataIndex: "title", key: "title" },
+    { title: "Description", dataIndex: "description", key: "description" },
+    { title: "Due Date", dataIndex: "duedate", key: "duedate" },
+    {
+      title: "Color",
+      dataIndex: "color",
+      key: "color",
+      render: (color) => {
+        const textColor = color === "yellow" ? "#000" : "#fff";
+        return (
+          <div
+            style={{
+              backgroundColor: color,
+              padding: "5px 10px",
+              borderRadius: "15px",
+              color: textColor,
+              textAlign: "center",
+              fontWeight: 500,
+              minWidth: "60px",
+            }}
+          >
+            {color.charAt(0).toUpperCase() + color.slice(1)}
+          </div>
+        );
+      },
+    },
+    { title: "Priority", dataIndex: "priorty", key: "priorty" },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_, record) => {
+        console.log("Record clicked:", record);
+        return (
+          <Space>
+            <Popconfirm
+              title="Are you sure to delete this todo"
+              onConfirm={() => TodoDelete(record.id)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button type="text" danger>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
+    },
+  ];
+
   const addTodo = async (values) => {
     try {
       const dateSet = {
@@ -94,8 +146,8 @@ function Todo() {
       );
 
       if (res.data.status) {
-        setTodos((oldData) => oldData.filter((t) => t.id !== id));
         message.success(res.data.message);
+        GetTodoss(currentPage, pageSize);
       } else {
         message.error(res.data.message);
       }
@@ -104,42 +156,7 @@ function Todo() {
     }
   };
 
-  const columns = [
-    {
-      title: "Title",
-      dataIndex: "title",
-      key: "title",
-    },
-    {
-      title: "Description",
-      dataIndex: "description",
-      key: "description",
-    },
-    {
-      title: "Color",
-      dataIndex: "color",
-      key: "color",
-      render: (color) => (
-        <span
-          style={{
-            display: "inline-block",
-            padding: "4px 18px",
-            borderRadius: "12px",
-            backgroundColor: color,
-            color: "#000000ff",
-            textTransform: "capitalize",
-          }}
-        > 
-          {color}
-        </span>
-      ),
-    },
-    {
-      title: "Priority",
-      dataIndex: "priorty",
-      key: "priorty",
-    },
-  ];
+  
 
   return (
     <Layout>
