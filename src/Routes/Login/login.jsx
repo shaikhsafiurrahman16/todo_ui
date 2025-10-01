@@ -55,7 +55,6 @@ function Login() {
           <Form.Item
             label="Email"
             name="email"
-            rules={[{ required: true, message: "Please enter your email!" }]}
           >
             <Input placeholder="Enter your email" />
           </Form.Item>
@@ -63,7 +62,6 @@ function Login() {
           <Form.Item
             label="Password"
             name="password"
-            rules={[{ required: true, message: "Please enter your password!" }]}
           >
             <Input.Password placeholder="Enter your password" />
           </Form.Item>

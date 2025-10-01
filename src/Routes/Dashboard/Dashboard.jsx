@@ -40,11 +40,11 @@ function Dashboard() {
 
         const alltodos = await axios.post(
           "http://localhost:3001/api/todo/read",
-          { page: 1, limit: 10000 }, // large limit to get all todos
+          { page: 1, limit: 10000 }, 
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (alltodos.data.status) {
-          setAll(alltodos.data.totalTodos); // ya res.data.data.length bhi le sakte ho
+          setAll(alltodos.data.totalTodos);
         }
 
         const res = await axios.post(
@@ -56,9 +56,6 @@ function Dashboard() {
         );
 
         const apiData = res.data.data;
-        
-        // const apidata = apiData.january
-        // const apidata = apiData['january']
 
         setChart(
           Object.keys(apiData).map((month) => (
@@ -70,8 +67,8 @@ function Dashboard() {
         ))
         );
       } catch (err) {
-        console.error("Error fetching counts:", err);
-        message.error("Failed to fetch todo counts");
+        console.error("Error fetching b counts:", err);
+        message.error("Fail to fetch todo counts");
       }
     };
 
@@ -81,6 +78,7 @@ function Dashboard() {
   return (
     <div style={{ padding: "20px" }}>
       <Row gutter={40}>
+
         <Col span={8}>
           <Card
             title="Completed"
@@ -93,6 +91,7 @@ function Dashboard() {
             <h1>{completed}</h1>
           </Card>
         </Col>
+        
         <Col span={8}>
           <Card
             title="Pending"
@@ -105,6 +104,7 @@ function Dashboard() {
             <h1>{pending}</h1>
           </Card>
         </Col>
+        
         <Col span={8}>
           <Card
             title="All"
@@ -117,8 +117,11 @@ function Dashboard() {
             <h1>{all}</h1>
           </Card>
         </Col>
+      
       </Row>
+      
       <Row style={{ marginTop: "20px" }}>
+      
         <Col span={24}>
           <Card title="Todo Status">
             <ResponsiveContainer width="100%" height={450}>
@@ -143,6 +146,7 @@ function Dashboard() {
             </ResponsiveContainer>
           </Card>
         </Col>
+      
       </Row>
     </div>
   );

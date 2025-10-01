@@ -91,12 +91,18 @@ function User() {
         <Modal
           title="Register User"
           open={open}
-          closable={true}
+          closable={false}
           footer={null}
           onCancel={() => setOpen(false)}
-          initialValues={{role: "user",}}
         >
-          <Form form={form} layout="vertical" onFinish={Register}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={Register}
+            initialValues={{
+              role: "user",
+            }}
+          >
             <Form.Item name="full_name" label="Full Name">
               <Input placeholder="Enter full name" />
             </Form.Item>
@@ -158,7 +164,7 @@ function User() {
             showSizeChanger: false,
             onChange: (page) => GetUsers(page, pageSize),
           }}
-          style={{ padding: "6px" }}
+          style={{ padding: "19px",  }}
         />
       </Content>
     </Layout>

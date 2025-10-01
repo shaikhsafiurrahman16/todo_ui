@@ -1,6 +1,6 @@
 import { Layout, Menu, Button, Row, Dropdown, Space } from "antd";
 import "antd/dist/reset.css";
-import { NavLink, useNavigate, Routes, Route } from "react-router-dom";
+import { NavLink, useNavigate, Routes, Route, useLocation  } from "react-router-dom";
 import {
   DashboardOutlined,
   UserOutlined,
@@ -10,8 +10,6 @@ import {
   MailOutlined,
   DownOutlined,
 } from "@ant-design/icons";
-
-// Components
 import Dashboard from "./Dashboard";
 import Todo from "./Todo";
 import User from "./User";
@@ -21,6 +19,7 @@ const { Header, Sider, Content, Footer } = Layout;
 
 function DashboardLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user")) || {
     name: "Guest",
     email: "N/A",
@@ -52,7 +51,7 @@ function DashboardLayout() {
 
   return (
     <Layout className="app-layout" style={{ minHeight: "100vh" }}>
-      {/* Sidebar */}
+
       <Sider
         width={240}
         style={{ background: "#fff", borderRight: "1px solid #00000022" }}
@@ -61,6 +60,7 @@ function DashboardLayout() {
           theme="light"
           mode="inline"
           defaultSelectedKeys={["/app/dashboard"]}
+          selectedKeys={[location.pathname]}
           items={[
             {
               key: "/app/dashboard",
@@ -73,7 +73,7 @@ function DashboardLayout() {
               label: <NavLink to="/app/todo">Todo</NavLink>,
             },
             ...(user.role === "admin"
-              ? [
+              ? [                                     /////   Conditional rendering of menu items
                   {
                     key: "/app/user",
                     icon: <UserOutlined />,
@@ -90,9 +90,8 @@ function DashboardLayout() {
         />
       </Sider>
 
-      {/* Main Layout */}
       <Layout>
-        {/* Header */}
+
         <Header
           style={{
             background: "#fff",
@@ -119,7 +118,7 @@ function DashboardLayout() {
           </Row>
         </Header>
 
-        <Content style={{ padding: "15px" }}>
+        <Content>
           <Routes>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="todo" element={<Todo />} />
