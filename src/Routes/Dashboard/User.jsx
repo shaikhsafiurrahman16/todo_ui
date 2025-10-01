@@ -8,8 +8,6 @@ import {
   Select,
   message,
   Table,
-  Space,
-  // Popconfirm,
 } from "antd";
 import axios from "axios";
 import { Header, Content } from "antd/es/layout/layout";
@@ -46,7 +44,7 @@ function User() {
     try {
       setLoading(true);
       const res = await axios.post(
-        "http://localhost:3001/api/dashboard/userread",
+        "http://localhost:3001/api/dashboard/userRead",
         { page, limit },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -74,6 +72,7 @@ function User() {
     { title: "Full_name", dataIndex: "full_name", key: "Full_name" },
     { title: "Email", dataIndex: "email", key: "Email" },
     { title: "CreatedAT", dataIndex: "createdAt", key: "CreatedAt" },
+    { title: "Last_Login", dataIndex: "last_login", key: "Last_Login" },
   ];
 
   return (
