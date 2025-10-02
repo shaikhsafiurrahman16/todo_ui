@@ -23,6 +23,7 @@ function Todo() {
   const [loading, setLoading] = useState(false); //  jb data fetch horaha hota hai tb loding dikhanay kay lia
   const [total, setTotal] = useState(0); //  PAGINATION KAY LIA ISMAY total todos ka count hai
   const [currentPage, setCurrentPage] = useState(1); // pagination kay lia issay pata chalta hai kay user bhi konsay page pr hai
+  const [editTodo, setEditTodo] = useState(null); // Editing kay lia
 
   const pageSize = 8;
   const token = localStorage.getItem("token");
@@ -101,6 +102,20 @@ function Todo() {
                 Delete
               </Button>
             </Popconfirm>
+            <Button
+              type="text"
+              onClick={() => {
+                setEditTodo(record); // jis record pe click hua usay get karo
+                setOpen(true); // modal khol do
+                form.setFieldsValue({
+                  // form kee values ko set karo
+                  ...record,
+                  duedate: dayjs(record.duedate), // date ko dayjs mein parse karna
+                });
+              }}
+            >
+              Edit
+            </Button>
           </Space>
         );
       },
@@ -111,22 +126,39 @@ function Todo() {
     try {
       const dateSet = {
         ...values,
-        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"), // date ko parse karkay string format may karega
+        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"),
       };
 
-      const res = await axios.post(
-        "http://localhost:3001/api/todo/create",
-        dateSet,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (editTodo) {
+        const res = await axios.put(
+          "http://localhost:3001/api/todo/update",
+          { id: editTodo.id, ...dateSet },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-      if (res.data.status) {
-        message.success("Todo added successfully");
-        form.resetFields();
-        setOpen(false);
-        GetTodoss(currentPage, pageSize);
+        if (res.data.status) {
+          message.success("Todo updated successfully");
+          setEditTodo(null);
+          setOpen(false);
+          GetTodoss(currentPage, pageSize); 
+        } else {
+          message.error(res.data.message);
+        }
       } else {
-        message.error(res.data.message);
+        const res = await axios.post(
+          "http://localhost:3001/api/todo/create",
+          dateSet,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.data.status) {
+          message.success("Todo added successfully");
+          form.resetFields();
+          setOpen(false);
+          GetTodoss(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -156,8 +188,6 @@ function Todo() {
     }
   };
 
-  
-
   return (
     <Layout>
       <Header
@@ -171,25 +201,34 @@ function Todo() {
           Add Todo
         </Button>
 
-        <Modal title="Add Todo" open={open} closable={false} footer={null}>
+        <Modal
+          title={editTodo ? "Edit Todo" : "Add Todo"}
+          open={open}
+          closable={false}
+          footer={null}
+          afterClose={() => {
+            setEditTodo(null);
+            form.resetFields();
+          }}
+        >
           <Form
             form={form}
             layout="vertical"
-            onFinish={addTodo} // jb form submit kartay hai tb trigger hota hai
+            onFinish={addTodo}
             initialValues={{ color: "red", priorty: "medium" }}
           >
-            <Form.Item name="title" label="Title" rules={[{ required: true }]}>
+            <Form.Item name="title" label="Title" rules={[{ required: true, message: "Title is required" }]}>
               <Input />
             </Form.Item>
 
-            <Form.Item name="description" label="Description">
+            <Form.Item name="description" label="Description" rules={[{ required: true, message: "Description is required" }]}>
               <Input.TextArea rows={3} />
             </Form.Item>
 
             <Form.Item
               name="duedate"
               label="Due Date"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message:"DueDate is required"}]}
             >
               <DatePicker showTime style={{ width: "100%" }} />
             </Form.Item>

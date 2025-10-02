@@ -14,6 +14,7 @@ import Dashboard from "./Dashboard";
 import Todo from "./Todo";
 import User from "./User";
 import Setting from "./Setting";
+import NotFound from "../../notFound";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -124,6 +125,7 @@ function DashboardLayout() {
             <Route path="todo" element={<Todo />} />
             {user.role === "admin" && <Route path="user" element={<User />} />}
             <Route path="setting" element={<Setting />} />
+            <Route path="*" element={<NotFound/>} />
           </Routes>
         </Content>
 
