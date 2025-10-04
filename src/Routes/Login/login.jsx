@@ -17,9 +17,6 @@ function Login() {
         const token = res.data.data.token;
         console.log("first" + res.data.data.token);
         localStorage.setItem("token", token);
-        const decoded = jwtDecode(token);
-        localStorage.setItem("user", JSON.stringify(decoded));
-
         message.success("Login successful!");
         navigate("/app/dashboard");
       } else {
@@ -55,6 +52,10 @@ function Login() {
           <Form.Item
             label="Email"
             name="email"
+            rules={[
+              { required: true, message: "Email is required" },
+              { type: "email", message: "Please enter a valid email" },
+            ]}
           >
             <Input placeholder="Enter your email" />
           </Form.Item>
@@ -62,6 +63,9 @@ function Login() {
           <Form.Item
             label="Password"
             name="password"
+            rules={[
+              { required: true, message: "Password is required" },
+            ]}
           >
             <Input.Password placeholder="Enter your password" />
           </Form.Item>

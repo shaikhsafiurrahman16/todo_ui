@@ -67,7 +67,7 @@ function Dashboard() {
         ))
         );
       } catch (err) {
-        console.error("Error fetching b counts:", err);
+        console.error("Error fetching counts:", err);
         message.error("Fail to fetch todo counts");
       }
     };

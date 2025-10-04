@@ -1,6 +1,13 @@
 import { Layout, Menu, Button, Row, Dropdown, Space } from "antd";
 import "antd/dist/reset.css";
-import { NavLink, useNavigate, Routes, Route, useLocation  } from "react-router-dom";
+import axios from "axios";  
+import {
+  NavLink,
+  useNavigate,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import {
   DashboardOutlined,
   UserOutlined,
@@ -15,17 +22,38 @@ import Todo from "./Todo";
 import User from "./User";
 import Setting from "./Setting";
 import NotFound from "../../notFound";
-
+import { useState, useEffect } from "react";
 const { Header, Sider, Content, Footer } = Layout;
 
 function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem("user")) || {
-    name: "Guest",
-    email: "N/A",
+  const [user, setUser] = useState({
+    name: "user",
+    email: "email",
     role: "user",
-  };
+  });
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      axios
+        .get("http://localhost:3001/api/user/info", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((res) => {
+          if (res.data.status) {
+            setUser(res.data.user);
+            localStorage.setItem("user", JSON.stringify(res.data.user)); // optional, agar refresh ke baad use karna ho
+          } else {
+            console.log("User not found");
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+        });
+    }
+  }, []);
 
   const Logout = () => {
     localStorage.removeItem("token");
@@ -52,12 +80,12 @@ function DashboardLayout() {
 
   return (
     <Layout className="app-layout" style={{ minHeight: "100vh" }}>
-
       <Sider
         width={240}
         style={{ background: "#fff", borderRight: "1px solid #00000022" }}
       >
         <Menu
+      
           theme="light"
           mode="inline"
           defaultSelectedKeys={["/app/dashboard"]}
@@ -74,7 +102,8 @@ function DashboardLayout() {
               label: <NavLink to="/app/todo">Todo</NavLink>,
             },
             ...(user.role === "admin"
-              ? [                                     /////   Conditional rendering of menu items
+              ? [
+                  /////   Conditional rendering of menu items
                   {
                     key: "/app/user",
                     icon: <UserOutlined />,
@@ -92,7 +121,6 @@ function DashboardLayout() {
       </Sider>
 
       <Layout>
-
         <Header
           style={{
             background: "#fff",
@@ -111,7 +139,7 @@ function DashboardLayout() {
               <Button type="default" style={{ border: "1px solid #d9d9d9" }}>
                 <Space>
                   <UserOutlined />
-                  {user.name || "Guest"}
+                  {user.full_name || "Guest"}
                   <DownOutlined />
                 </Space>
               </Button>
@@ -125,7 +153,7 @@ function DashboardLayout() {
             <Route path="todo" element={<Todo />} />
             {user.role === "admin" && <Route path="user" element={<User />} />}
             <Route path="setting" element={<Setting />} />
-            <Route path="*" element={<NotFound/>} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Content>
 

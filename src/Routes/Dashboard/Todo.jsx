@@ -29,7 +29,6 @@ function Todo() {
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    // jb comp render hoga todos load hojayengay or tble may show hongay
     GetTodoss();
   }, []);
 
@@ -57,7 +56,7 @@ function Todo() {
   };
 
   const columns = [
-    { title: "Id", dataIndex: "Id", key: "Id" },
+    { title: "Id", dataIndex: "id", key: "Id" },
     { title: "Title", dataIndex: "title", key: "title" },
     { title: "Description", dataIndex: "description", key: "description" },
     { title: "Due Date", dataIndex: "duedate", key: "duedate" },
@@ -140,7 +139,7 @@ function Todo() {
           message.success("Todo updated successfully");
           setEditTodo(null);
           setOpen(false);
-          GetTodoss(currentPage, pageSize); 
+          GetTodoss(currentPage, pageSize);
         } else {
           message.error(res.data.message);
         }
@@ -217,18 +216,26 @@ function Todo() {
             onFinish={addTodo}
             initialValues={{ color: "red", priorty: "medium" }}
           >
-            <Form.Item name="title" label="Title" rules={[{ required: true, message: "Title is required" }]}>
+            <Form.Item
+              name="title"
+              label="Title"
+              rules={[{ required: true, message: "Title is required" }]}
+            >
               <Input />
             </Form.Item>
 
-            <Form.Item name="description" label="Description" rules={[{ required: true, message: "Description is required" }]}>
+            <Form.Item
+              name="description"
+              label="Description"
+              rules={[{ required: true, message: "Description is required" }]}
+            >
               <Input.TextArea rows={3} />
             </Form.Item>
 
             <Form.Item
               name="duedate"
               label="Due Date"
-              rules={[{ required: true, message:"DueDate is required"}]}
+              rules={[{ required: true, message: "Due Date is required" }]}
             >
               <DatePicker showTime style={{ width: "100%" }} />
             </Form.Item>
@@ -323,8 +330,7 @@ function Todo() {
           columns={columns}
           dataSource={todos.map((todo, index) => ({
             ...todo,
-            key: todo.Id ?? index, // Antd ke liye unique key
-            id: todo.Id, // delete ke liye
+            key: todo.Id ?? index,
           }))}
           loading={loading}
           pagination={{
