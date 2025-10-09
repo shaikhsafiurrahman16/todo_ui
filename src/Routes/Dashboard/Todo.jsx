@@ -60,20 +60,19 @@ function Todo() {
   const download = async () => {
     try {
       let allTodos = [];
-
-      for (let page = 1, hasMore = true; hasMore; page++) {
+      for (let page = 1, moreTodos = true; moreTodos; page++) {
         const res = await axios.post(
           "http://localhost:3001/api/todo/read",
-          { page, limit: 8, color, priority },
+          { page, limit: 8, color, priorty: priority },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
         const data = res.data.data || [];
         if (res.data.status && data.length > 0) {
           allTodos.push(...data);
-          hasMore = data.length === 8;
+          moreTodos = data.length === 8;
         } else {
-          hasMore = false;
+          moreTodos = false;
         }
       }
 
@@ -105,7 +104,7 @@ function Todo() {
           : "No Date",
       ]);
 
-      autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
+      autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 }); // pdf may formatted table may convert karrahi hai  // jspdf-autotale library ka func hai
       doc.save(`todos_${color}_${priority}.pdf`);
     } catch (err) {
       message.error("Failed to download all pages");
@@ -154,7 +153,10 @@ function Todo() {
     {
       title: "Actions",
       key: "actions",
-      render: (_, record) => (
+      render: (
+        _,
+        record // record = current row ka data
+      ) => (
         <Space>
           <Popconfirm
             title="Are you sure to delete this todo?"
@@ -171,7 +173,7 @@ function Todo() {
             onClick={async () => {
               try {
                 const res = await axios.post(
-                  "http://localhost:3001/api/todo/get-todo-ById",
+                  "http://localhost:3001/api/todo/getTodoById",
                   { id: record.Id },
                   { headers: { Authorization: `Bearer ${token}` } }
                 );
