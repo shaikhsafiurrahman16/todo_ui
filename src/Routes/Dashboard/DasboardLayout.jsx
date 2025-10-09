@@ -1,6 +1,6 @@
 import { Layout, Menu, Button, Row, Dropdown, Space } from "antd";
 import "antd/dist/reset.css";
-import axios from "axios";  
+import axios from "axios";
 import {
   NavLink,
   useNavigate,
@@ -34,27 +34,14 @@ function DashboardLayout() {
     role: "user",
   });
 
+
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      axios
-        .get("http://localhost:3001/api/user/info", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((res) => {
-          if (res.data.status) {
-            setUser(res.data.user);
-            localStorage.setItem("user", JSON.stringify(res.data.user)); // optional, agar refresh ke baad use karna ho
-          } else {
-            console.log("User not found");
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-        });
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      setUser(JSON.parse(userData));
     }
   }, []);
-
   const Logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -85,7 +72,6 @@ function DashboardLayout() {
         style={{ background: "#fff", borderRight: "1px solid #00000022" }}
       >
         <Menu
-      
           theme="light"
           mode="inline"
           defaultSelectedKeys={["/app/dashboard"]}

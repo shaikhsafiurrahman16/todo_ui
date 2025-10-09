@@ -12,54 +12,121 @@ import {
   message,
   Popconfirm,
 } from "antd";
+const { Search } = Input;
 import axios from "axios";
 import { Header, Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function Todo() {
   const [open, setOpen] = useState(false); // modal open or close
   const [form] = Form.useForm(); // for form handling
-  const [todos, setTodos] = useState([]); //  for addingtodos
-  const [loading, setLoading] = useState(false); //  jb data fetch horaha hota hai tb loding dikhanay kay lia
-  const [total, setTotal] = useState(0); //  PAGINATION KAY LIA ISMAY total todos ka count hai
-  const [currentPage, setCurrentPage] = useState(1); // pagination kay lia issay pata chalta hai kay user bhi konsay page pr hai
-  const [editTodo, setEditTodo] = useState(null); // Editing kay lia
+  const [todos, setTodos] = useState([]); // for adding todos
+  const [loading, setLoading] = useState(false); // loading indicator
+  const [total, setTotal] = useState(0); // pagination total
+  const [currentPage, setCurrentPage] = useState(1); // pagination current
+  const [editTodo, setEditTodo] = useState(null); // editing ke liye
+  const [color, setColor] = useState("all"); // color kay lia
+  const [priority, setPriority] = useState("all"); // priorty kay lia
 
   const pageSize = 8;
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    GetTodoss();
-  }, []);
-
-  const GetTodoss = async (page = 1, limit = pageSize) => {
+  const GetTodoss = async (page = 1, limit = pageSize, search = "") => {
     try {
       setLoading(true);
       const res = await axios.post(
         "http://localhost:3001/api/todo/read",
-        { page, limit },
+        { page, limit, search, color, priorty: priority },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log("Todos from backend:", res.data.data); // <--- ye add karo
+
       if (res.data.status) {
         setTodos(res.data.data);
         setTotal(res.data.totalTodos);
         setCurrentPage(page);
       } else {
-        alert(res.data.message);
+        message.warning(res.data.message || "No todos found");
+        setTodos([]); // agar search ka result empty ho
       }
     } catch (err) {
       console.error(err);
+      message.error("Failed to fetch todos");
     } finally {
       setLoading(false);
     }
   };
+  const download = async () => {
+    try {
+      let allTodos = [];
+
+      for (let page = 1, hasMore = true; hasMore; page++) {
+        const res = await axios.post(
+          "http://localhost:3001/api/todo/read",
+          { page, limit: 8, color, priority },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const data = res.data.data || [];
+        if (res.data.status && data.length > 0) {
+          allTodos.push(...data);
+          hasMore = data.length === 8;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (!allTodos.length) {
+        message.warning("No todos to download");
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.text("Todos List", 14, 10);
+
+      const tableColumn = [
+        "ID",
+        "Title",
+        "Description",
+        "Color",
+        "Priority",
+        "Due Date",
+      ];
+
+      const tableRows = allTodos.map((todo) => [
+        todo.Id,
+        todo.title,
+        todo.description,
+        todo.color,
+        todo.priorty,
+        todo.duedate
+          ? dayjs(todo.duedate).format("DD-MM-YYYY hh:mm:ss")
+          : "No Date",
+      ]);
+
+      autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
+      doc.save(`todos_${color}_${priority}.pdf`);
+    } catch (err) {
+      message.error("Failed to download all pages");
+    }
+  };
+
+  useEffect(() => {
+    GetTodoss();
+  }, [color, priority]);
 
   const columns = [
-    { title: "Id", dataIndex: "id", key: "Id" },
+    { title: "Id", dataIndex: "Id", key: "Id" },
     { title: "Title", dataIndex: "title", key: "title" },
     { title: "Description", dataIndex: "description", key: "description" },
-    { title: "Due Date", dataIndex: "duedate", key: "duedate" },
+    {
+      title: "Due Date",
+      dataIndex: "duedate",
+      key: "duedate",
+      render: (date) =>
+        date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "-",
+    },
     {
       title: "Color",
       dataIndex: "color",
@@ -87,37 +154,48 @@ function Todo() {
     {
       title: "Actions",
       key: "actions",
-      render: (_, record) => {
-        console.log("Record clicked:", record);
-        return (
-          <Space>
-            <Popconfirm
-              title="Are you sure to delete this todo"
-              onConfirm={() => TodoDelete(record.id)}
-              okText="Yes"
-              cancelText="No"
-            >
-              <Button type="text" danger>
-                Delete
-              </Button>
-            </Popconfirm>
-            <Button
-              type="text"
-              onClick={() => {
-                setEditTodo(record); // jis record pe click hua usay get karo
-                setOpen(true); // modal khol do
-                form.setFieldsValue({
-                  // form kee values ko set karo
-                  ...record,
-                  duedate: dayjs(record.duedate), // date ko dayjs mein parse karna
-                });
-              }}
-            >
-              Edit
+      render: (_, record) => (
+        <Space>
+          <Popconfirm
+            title="Are you sure to delete this todo?"
+            onConfirm={() => TodoDelete(record.Id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="text" danger>
+              Delete
             </Button>
-          </Space>
-        );
-      },
+          </Popconfirm>
+          <Button
+            type="text"
+            onClick={async () => {
+              try {
+                const res = await axios.post(
+                  "http://localhost:3001/api/todo/get-todo-ById",
+                  { id: record.Id },
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+
+                if (res.data.status) {
+                  const todo = res.data.data;
+                  setEditTodo(todo);
+                  form.setFieldsValue({
+                    ...todo,
+                    duedate: todo.duedate ? dayjs(todo.duedate) : null,
+                  });
+                  setOpen(true);
+                } else {
+                  message.error(res.data.message);
+                }
+              } catch (err) {
+                message.error("Failed to fetch todo details");
+              }
+            }}
+          >
+            Edit
+          </Button>
+        </Space>
+      ),
     },
   ];
 
@@ -131,7 +209,10 @@ function Todo() {
       if (editTodo) {
         const res = await axios.put(
           "http://localhost:3001/api/todo/update",
-          { id: editTodo.id, ...dateSet },
+          {
+            id: editTodo.Id,
+            ...dateSet,
+          },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -161,6 +242,7 @@ function Todo() {
       }
     } catch (err) {
       console.error(err);
+      message.error("Something went wrong!");
     }
   };
 
@@ -196,9 +278,62 @@ function Todo() {
           paddingRight: "16px",
         }}
       >
-        <Button type="primary" onClick={() => setOpen(true)}>
-          Add Todo
-        </Button>
+        <div
+          style={{
+            textAlign: "right",
+            display: "flex",
+            justifyContent: "end",
+            paddingTop: "20px",
+          }}
+        >
+          <Button style={{ marginRight: "20px" }} onClick={download}>
+            Download
+          </Button>
+          <Select
+            value={priority}
+            style={{ width: 120, marginRight: "20px" }}
+            onChange={(value) => {
+              setPriority(value);
+              GetTodoss(1, pageSize);
+            }}
+          >
+            <Select.Option value="all">All Priorities</Select.Option>
+            <Select.Option value="low">Low</Select.Option>
+            <Select.Option value="medium">Medium</Select.Option>
+            <Select.Option value="high">High</Select.Option>
+          </Select>
+          <Select
+            value={color}
+            style={{ width: 110, marginBottom: 16, marginRight: "20px" }}
+            onChange={(value) => {
+              setColor(value);
+              GetTodoss(1, pageSize);
+            }}
+          >
+            <Select.Option value="all">All Colors</Select.Option>
+            <Select.Option value="red">Red</Select.Option>
+            <Select.Option value="yellow">Yellow</Select.Option>
+            <Select.Option value="green">Green</Select.Option>
+          </Select>
+          <Search
+            placeholder="Search todos..."
+            allowClear
+            onChange={(e) => GetTodoss(1, pageSize, e.target.value)}
+            style={{ width: 300, marginRight: "20px" }}
+            enterButton={false}
+          />
+
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditTodo(null);
+              setOpen(true);
+              form.resetFields();
+            }}
+          >
+            Add Todo
+          </Button>
+        </div>
 
         <Modal
           title={editTodo ? "Edit Todo" : "Add Todo"}
@@ -242,48 +377,9 @@ function Todo() {
 
             <Form.Item name="color" label="Color">
               <Select>
-                <Select.Option value="red">
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: "12px",
-                      height: "12px",
-                      backgroundColor: "red",
-                      borderRadius: "50%",
-                      marginRight: "8px",
-                    }}
-                  ></span>
-                  Red
-                </Select.Option>
-
-                <Select.Option value="yellow">
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: "12px",
-                      height: "12px",
-                      backgroundColor: "yellow",
-                      borderRadius: "50%",
-                      marginRight: "8px",
-                    }}
-                  ></span>
-                  Yellow
-                </Select.Option>
-
-                <Select.Option value="green">
-                  <div
-                    style={{
-                      display: "inline-block",
-                      width: "12px",
-                      height: "12px",
-                      backgroundColor: "green",
-                      borderRadius: "50%",
-                      marginRight: "8px",
-                    }}
-                  >
-                    Green
-                  </div>
-                </Select.Option>
+                <Select.Option value="red">Red</Select.Option>
+                <Select.Option value="yellow">Yellow</Select.Option>
+                <Select.Option value="green">Green</Select.Option>
               </Select>
             </Form.Item>
 
@@ -302,7 +398,7 @@ function Todo() {
                 <Button
                   type="default"
                   htmlType="button"
-                  onClick={() => setOpen(false)} // <-- yaha onClick use karo
+                  onClick={() => setOpen(false)}
                   style={{ flex: 1 }}
                 >
                   Cancel
@@ -321,7 +417,7 @@ function Todo() {
       <Content
         style={{
           padding: "20px",
-          background: "#ffffffff",
+          background: "#fff",
           minHeight: "80vh",
           borderRadius: "8px",
         }}

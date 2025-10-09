@@ -13,15 +13,15 @@ import {
 } from "antd";
 import axios from "axios";
 import { Header, Content } from "antd/es/layout/layout";
+import dayjs from "dayjs";
 
 function User() {
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
-  const [users, setUsers] = useState([]); //  for addingtodos
-  const [loading, setLoading] = useState(false); //  jb data fetch horaha hota hai tb loding dikhanay kay lia
-  const [total, setTotal] = useState(0); //  PAGINATION KAY LIA ISMAY total todos ka count hai
-  const [currentPage, setCurrentPage] = useState(1); // pagination kay lia issay pata chalta hai kay user bhi konsay page pr hai
-  // const [editUser, setEditUser] = useState(null); // Editing kay lia
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const pageSize = 8;
   const token = localStorage.getItem("token");
@@ -36,6 +36,7 @@ function User() {
         message.success(res.data.message);
         form.resetFields();
         setOpen(false);
+        GetUsers(currentPage, pageSize);
       } else {
         message.error(res.data.message);
       }
@@ -44,6 +45,7 @@ function User() {
       message.error("Something went wrong");
     }
   };
+
   const GetUsers = async (page = 1, limit = pageSize) => {
     try {
       setLoading(true);
@@ -66,6 +68,7 @@ function User() {
       setLoading(false);
     }
   };
+
   const userDelete = async (id) => {
     if (!id) {
       message.error("Id is required!");
@@ -76,13 +79,13 @@ function User() {
         "http://localhost:3001/api/user/userDelete",
         {
           headers: { Authorization: `Bearer ${token}` },
-          data: { id }, // ✅ correct body
+          data: { id },
         }
       );
 
       if (res.data.status) {
         message.success(res.data.message);
-        GetUsers(currentPage, pageSize); // refresh after delete
+        GetUsers(currentPage, pageSize);
       } else {
         message.error(res.data.message);
       }
@@ -91,6 +94,7 @@ function User() {
       message.error("Failed to delete user");
     }
   };
+
   const EditUser = async (values) => {
     try {
       const res = await axios.put(
@@ -112,13 +116,25 @@ function User() {
       message.error("Something went wrong");
     }
   };
+
   const columns = [
     { title: "Id", dataIndex: "id", key: "Id" },
     { title: "Role", dataIndex: "role", key: "role" },
-    { title: "Full_name", dataIndex: "full_name", key: "Full_name" },
+    { title: "Full Name", dataIndex: "full_name", key: "Full_name" },
     { title: "Email", dataIndex: "email", key: "Email" },
-    { title: "CreatedAT", dataIndex: "createdAt", key: "CreatedAt" },
-    { title: "Last_Login", dataIndex: "last_login", key: "Last_Login" },
+    {
+      title: "Created At",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date) => (date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--"),
+    },
+    {
+      title: "Last Login",
+      dataIndex: "last_login",
+      key: "last_login",
+      render: (date) => (date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--"),
+    },
+
     {
       title: "Actions",
       key: "actions",
@@ -127,7 +143,7 @@ function User() {
         return (
           <Space>
             <Popconfirm
-              title="Are you sure to delete this todo"
+              title="Are you sure to delete this user?"
               onConfirm={() => userDelete(record.id)}
               okText="Yes"
               cancelText="No"
@@ -139,8 +155,8 @@ function User() {
             <Button
               type="text"
               onClick={() => {
-                form.setFieldsValue(record); // record ka data modal me dal do
-                setOpen(true); // modal open karo
+                form.setFieldsValue(record);
+                setOpen(true);
               }}
             >
               Edit
@@ -150,6 +166,7 @@ function User() {
       },
     },
   ];
+
   useEffect(() => {
     GetUsers();
   }, []);
@@ -163,9 +180,10 @@ function User() {
           paddingRight: "16px",
         }}
       >
-        <Button type="primary" onClick={() => setOpen(true)}>
+        <Button type="primary" onClick={() => {setOpen(true); form.resetFields()}}>
           Add User
         </Button>
+
         <Modal
           title="Register User"
           open={open}
@@ -178,9 +196,9 @@ function User() {
             layout="vertical"
             onFinish={(values) => {
               if (values.id) {
-                EditUser(values); // agar id hai to edit
+                EditUser(values);
               } else {
-                addUser(values); // warna naya user add
+                addUser(values);
               }
             }}
             initialValues={{
@@ -194,12 +212,7 @@ function User() {
             <Form.Item
               name="full_name"
               label="Full Name"
-              rules={[
-                {
-                  required: true,
-                  message: "Fullname is required",
-                },
-              ]}
+              rules={[{ required: true, message: "Fullname is required" }]}
             >
               <Input placeholder="Enter full name" />
             </Form.Item>
@@ -215,30 +228,21 @@ function User() {
               <Input placeholder="Enter email" />
             </Form.Item>
 
-            {!form.getFieldValue("id") && (
               <Form.Item name="role" label="Role">
                 <Select>
                   <Select.Option value="admin">Admin</Select.Option>
                   <Select.Option value="user">User</Select.Option>
                 </Select>
               </Form.Item>
-            )}
 
-            {!form.getFieldValue("id") && (
               <Form.Item
                 name="password"
                 label="Password"
-                rules={[
-                  {
-                    required: true,
-                    message: "Password is required",
-                  },
-                ]}
+                rules={[{ required: true, message: "Password is required" }]}
               >
                 <Input.Password placeholder="Enter password" />
               </Form.Item>
-            )}
-
+              
             <Form.Item>
               <div style={{ display: "flex", gap: "10px" }}>
                 <Button
@@ -257,7 +261,9 @@ function User() {
           </Form>
         </Modal>
       </Header>
+
       <hr />
+
       <Content
         style={{
           background: "#ffffffff",
@@ -269,8 +275,8 @@ function User() {
           columns={columns}
           dataSource={users.map((user, index) => ({
             ...user,
-            key: user.Id ?? index, // Antd ke liye unique key
-            id: user.Id, // delete ke liye
+            key: user.Id ?? index,
+            id: user.Id,
           }))}
           loading={loading}
           pagination={{

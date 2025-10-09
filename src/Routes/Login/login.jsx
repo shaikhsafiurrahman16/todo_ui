@@ -1,7 +1,6 @@
 import { Form, Input, Button, Card, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { jwtDecode } from "jwt-decode";
 
 function Login() {
   const navigate = useNavigate();
@@ -14,9 +13,10 @@ function Login() {
       );
 
       if (res.data.status) {
-        const token = res.data.data.token;
-        console.log("first" + res.data.data.token);
-        localStorage.setItem("token", token);
+        const userData = res.data.data;
+        localStorage.setItem("token", userData.token);
+        localStorage.setItem("user", JSON.stringify(userData));
+
         message.success("Login successful!");
         navigate("/app/dashboard");
       } else {
@@ -63,9 +63,7 @@ function Login() {
           <Form.Item
             label="Password"
             name="password"
-            rules={[
-              { required: true, message: "Password is required" },
-            ]}
+            rules={[{ required: true, message: "Password is required" }]}
           >
             <Input.Password placeholder="Enter your password" />
           </Form.Item>
