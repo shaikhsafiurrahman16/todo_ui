@@ -13,7 +13,7 @@ import {
   Popconfirm,
 } from "antd";
 const { Search } = Input;
-import axios from "axios";
+import axios from "../Axios";
 import { Header, Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
 import jsPDF from "jspdf";
@@ -29,6 +29,7 @@ function Todo() {
   const [editTodo, setEditTodo] = useState(null); // editing ke liye
   const [color, setColor] = useState("all"); // color kay lia
   const [priority, setPriority] = useState("all"); // priorty kay lia
+  const [searchText, setSearchText] = useState(""); // search kay lia
 
   const pageSize = 8;
   const token = localStorage.getItem("token");
@@ -36,11 +37,13 @@ function Todo() {
   const GetTodoss = async (page = 1, limit = pageSize, search = "") => {
     try {
       setLoading(true);
-      const res = await axios.post(
-        "http://localhost:3001/api/todo/read",
-        { page, limit, search, color, priorty: priority },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post("/todo/read", {
+        page,
+        limit,
+        search,
+        color,
+        priorty: priority,
+      });
 
       if (res.data.status) {
         setTodos(res.data.data);
@@ -61,11 +64,13 @@ function Todo() {
     try {
       let allTodos = [];
       for (let page = 1, moreTodos = true; moreTodos; page++) {
-        const res = await axios.post(
-          "http://localhost:3001/api/todo/read",
-          { page, limit: 8, color, priorty: priority },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await axios.post("/todo/read", {
+          page,
+          limit: 8,
+          color,
+          priorty: priority,
+          search: searchText,
+        });
 
         const data = res.data.data || [];
         if (res.data.status && data.length > 0) {
@@ -172,11 +177,9 @@ function Todo() {
             type="text"
             onClick={async () => {
               try {
-                const res = await axios.post(
-                  "http://localhost:3001/api/todo/getTodoById",
-                  { id: record.Id },
-                  { headers: { Authorization: `Bearer ${token}` } }
-                );
+                const res = await axios.post("/todo/getTodoById", {
+                  id: record.Id,
+                });
 
                 if (res.data.status) {
                   const todo = res.data.data;
@@ -209,14 +212,10 @@ function Todo() {
       };
 
       if (editTodo) {
-        const res = await axios.put(
-          "http://localhost:3001/api/todo/update",
-          {
-            id: editTodo.Id,
-            ...dateSet,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await axios.put("/todo/update", {
+          id: editTodo.Id,
+          ...dateSet,
+        });
 
         if (res.data.status) {
           message.success("Todo updated successfully");
@@ -227,11 +226,7 @@ function Todo() {
           message.error(res.data.message);
         }
       } else {
-        const res = await axios.post(
-          "http://localhost:3001/api/todo/create",
-          dateSet,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await axios.post("/todo/create", dateSet, {});
 
         if (res.data.status) {
           message.success("Todo added successfully");
@@ -254,11 +249,7 @@ function Todo() {
       return;
     }
     try {
-      const res = await axios.post(
-        "http://localhost:3001/api/todo/delete",
-        { id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post("/todo/delete", { id });
 
       if (res.data.status) {
         message.success(res.data.message);
@@ -320,7 +311,7 @@ function Todo() {
           <Search
             placeholder="Search todos..."
             allowClear
-            onChange={(e) => GetTodoss(1, pageSize, e.target.value)}
+            onChange={(e) =>{setSearchText(e.target.value);  GetTodoss(1, pageSize, e.target.value);}}
             style={{ width: 300, marginRight: "20px" }}
             enterButton={false}
           />

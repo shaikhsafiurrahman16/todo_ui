@@ -1,6 +1,6 @@
 import { Form, Input, Button, Card, message } from "antd";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "../Axios";
 
 function Login() {
   const navigate = useNavigate();
@@ -8,7 +8,7 @@ function Login() {
   const onFinish = async (values) => {
     try {
       const res = await axios.post(
-        "http://localhost:3001/api/auth/login",
+        "/auth/login",
         values
       );
 
@@ -23,9 +23,10 @@ function Login() {
         message.error(res.data.message);
       }
     } catch (err) {
+    console.log(err)
       const msg = err.response?.data?.message || "Something went wrong";
-      console.log(err);
       message.error(msg);
+
     }
   };
 

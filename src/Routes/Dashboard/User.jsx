@@ -11,7 +11,7 @@ import {
   Popconfirm,
   Space,
 } from "antd";
-import axios from "axios";
+import axios from "../Axios";
 import { Header, Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
 
@@ -28,10 +28,7 @@ function User() {
 
   const addUser = async (values) => {
     try {
-      const res = await axios.post(
-        "http://localhost:3001/api/auth/register",
-        values
-      );
+      const res = await axios.post("/auth/register", values);
       if (res.data.status) {
         message.success(res.data.message);
         form.resetFields();
@@ -49,11 +46,7 @@ function User() {
   const GetUsers = async (page = 1, limit = pageSize) => {
     try {
       setLoading(true);
-      const res = await axios.post(
-        "http://localhost:3001/api/user/userRead",
-        { page, limit },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post("/user/userRead", { page, limit });
       console.log("Users from backend:", res.data.data);
       if (res.data.status) {
         setUsers(res.data.data);
@@ -75,13 +68,9 @@ function User() {
       return;
     }
     try {
-      const res = await axios.delete(
-        "http://localhost:3001/api/user/userDelete",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          data: { id },
-        }
-      );
+      const res = await axios.delete("/user/userDelete", {
+        data: { id },
+      });
 
       if (res.data.status) {
         message.success(res.data.message);
@@ -97,11 +86,7 @@ function User() {
 
   const EditUser = async (values) => {
     try {
-      const res = await axios.put(
-        "http://localhost:3001/api/user/userUpdate",
-        values,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.put("/user/userUpdate", values);
 
       if (res.data.status) {
         message.success(res.data.message);
@@ -132,11 +117,10 @@ function User() {
       cancelText: "Cancel",
       onOk: async () => {
         try {
-          const res = await axios.post(
-            "http://localhost:3001/api/user/checkPassword",
-            { id: record.id, oldPassword },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
+          const res = await axios.post("/user/checkPassword", {
+            id: record.id,
+            oldPassword,
+          });
 
           if (res.data.status) {
             form.setFieldsValue({ ...record, password: "" });

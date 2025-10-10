@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Row, Col, message } from "antd";
-import axios from "axios";
+import axios from "../Axios";
 import {
   BarChart,
   Cell,
@@ -26,45 +26,32 @@ function Dashboard() {
           return;
         }
 
-        const completedTodos = await axios.get(
-          "http://localhost:3001/api/dashboard/completedTodo",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const completedTodos = await axios.get("/dashboard/completedTodo");
         if (completedTodos.data.status) setCompleted(completedTodos.data.data);
 
-        const pendingTodos = await axios.get(
-          "http://localhost:3001/api/dashboard/pendingTodo",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const pendingTodos = await axios.get("/dashboard/pendingTodo");
         if (pendingTodos.data.status) setPending(pendingTodos.data.data);
 
-        const alltodos = await axios.post(
-          "http://localhost:3001/api/todo/read",
-          { page: 1, limit: 10000 }, 
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const alltodos = await axios.post("/todo/read", {
+          page: 1,
+          limit: 10000,
+        });
         if (alltodos.data.status) {
           setAll(alltodos.data.totalTodos);
         }
 
         const res = await axios.post(
-          "http://localhost:3001/api/dashboard/report",
+          "/dashboard/report",
           {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
         );
 
         const apiData = res.data.data;
 
         setChart(
-          Object.keys(apiData).map((month) => (
-            {
+          Object.keys(apiData).map((month) => ({
             month,
             todos: apiData[month],
-          }
-        
-        ))
+          }))
         );
       } catch (err) {
         console.error("Error fetching counts:", err);
@@ -78,7 +65,6 @@ function Dashboard() {
   return (
     <div style={{ padding: "20px" }}>
       <Row gutter={40}>
-
         <Col span={8}>
           <Card
             title="Completed"
@@ -91,7 +77,7 @@ function Dashboard() {
             <h1>{completed}</h1>
           </Card>
         </Col>
-        
+
         <Col span={8}>
           <Card
             title="Pending"
@@ -104,7 +90,7 @@ function Dashboard() {
             <h1>{pending}</h1>
           </Card>
         </Col>
-        
+
         <Col span={8}>
           <Card
             title="All"
@@ -117,11 +103,9 @@ function Dashboard() {
             <h1>{all}</h1>
           </Card>
         </Col>
-      
       </Row>
-      
+
       <Row style={{ marginTop: "20px" }}>
-      
         <Col span={24}>
           <Card title="Todo Status">
             <ResponsiveContainer width="100%" height={450}>
@@ -146,7 +130,6 @@ function Dashboard() {
             </ResponsiveContainer>
           </Card>
         </Col>
-      
       </Row>
     </div>
   );
