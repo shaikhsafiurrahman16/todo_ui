@@ -117,6 +117,41 @@ function User() {
     }
   };
 
+  const Edit = (record) => {
+    let oldPassword = "";
+
+    Modal.confirm({
+      title: "Verify Your Password",
+      content: (
+        <Input.Password
+          placeholder="Enter your current password"
+          onChange={(e) => (oldPassword = e.target.value)}
+        />
+      ),
+      okText: "Verify",
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          const res = await axios.post(
+            "http://localhost:3001/api/user/checkPassword",
+            { id: record.id, oldPassword },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          if (res.data.status) {
+            form.setFieldsValue({ ...record, password: "" });
+            setOpen(true);
+          } else {
+            message.error(res.data.message);
+          }
+        } catch (err) {
+          console.error(err);
+          message.error("Verification failed");
+        }
+      },
+    });
+  };
+
   const columns = [
     { title: "Id", dataIndex: "id", key: "Id" },
     { title: "Role", dataIndex: "role", key: "role" },
@@ -126,13 +161,15 @@ function User() {
       title: "Created At",
       dataIndex: "createdAt",
       key: "createdAt",
-      render: (date) => (date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--"),
+      render: (date) =>
+        date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--",
     },
     {
       title: "Last Login",
       dataIndex: "last_login",
       key: "last_login",
-      render: (date) => (date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--"),
+      render: (date) =>
+        date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--",
     },
 
     {
@@ -152,13 +189,7 @@ function User() {
                 Delete
               </Button>
             </Popconfirm>
-            <Button
-              type="text"
-              onClick={() => {
-                form.setFieldsValue(record);
-                setOpen(true);
-              }}
-            >
+            <Button type="text" onClick={() => Edit(record)}>
               Edit
             </Button>
           </Space>
@@ -180,7 +211,13 @@ function User() {
           paddingRight: "16px",
         }}
       >
-        <Button type="primary" onClick={() => {setOpen(true); form.resetFields()}}>
+        <Button
+          type="primary"
+          onClick={() => {
+            setOpen(true);
+            form.resetFields();
+          }}
+        >
           Add User
         </Button>
 
@@ -228,21 +265,21 @@ function User() {
               <Input placeholder="Enter email" />
             </Form.Item>
 
-              <Form.Item name="role" label="Role">
-                <Select>
-                  <Select.Option value="admin">Admin</Select.Option>
-                  <Select.Option value="user">User</Select.Option>
-                </Select>
-              </Form.Item>
+            <Form.Item name="role" label="Role">
+              <Select>
+                <Select.Option value="admin">Admin</Select.Option>
+                <Select.Option value="user">User</Select.Option>
+              </Select>
+            </Form.Item>
 
-              <Form.Item
-                name="password"
-                label="Password"
-                rules={[{ required: true, message: "Password is required" }]}
-              >
-                <Input.Password placeholder="Enter password" />
-              </Form.Item>
-              
+            <Form.Item
+              name="password"
+              label="Password"
+              rules={[{ required: true, message: "Password is required" }]}
+            >
+              <Input.Password placeholder="Enter password" />
+            </Form.Item>
+
             <Form.Item>
               <div style={{ display: "flex", gap: "10px" }}>
                 <Button

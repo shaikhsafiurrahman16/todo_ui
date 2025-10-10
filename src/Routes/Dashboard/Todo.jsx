@@ -47,8 +47,8 @@ function Todo() {
         setTotal(res.data.totalTodos);
         setCurrentPage(page);
       } else {
-        message.warning(res.data.message || "No todos found");
-        setTodos([]); // agar search ka result empty ho
+        message.warning("No todos found");
+        setTodos([]);
       }
     } catch (err) {
       console.error(err);

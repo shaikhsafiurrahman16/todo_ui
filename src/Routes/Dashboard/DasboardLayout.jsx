@@ -28,13 +28,12 @@ const { Header, Sider, Content, Footer } = Layout;
 function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  
   const [user, setUser] = useState({
     name: "user",
     email: "email",
     role: "user",
   });
-
-
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -42,6 +41,7 @@ function DashboardLayout() {
       setUser(JSON.parse(userData));
     }
   }, []);
+
   const Logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
