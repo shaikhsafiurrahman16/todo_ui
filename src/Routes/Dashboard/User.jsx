@@ -14,6 +14,7 @@ import {
 import axios from "../Axios";
 import { Header, Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
+import { jwtDecode } from "jwt-decode";
 
 function User() {
   const [open, setOpen] = useState(false);
@@ -24,24 +25,6 @@ function User() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const pageSize = 8;
-  const token = localStorage.getItem("token");
-
-  const addUser = async (values) => {
-    try {
-      const res = await axios.post("/auth/register", values);
-      if (res.data.status) {
-        message.success(res.data.message);
-        form.resetFields();
-        setOpen(false);
-        GetUsers(currentPage, pageSize);
-      } else {
-        message.error(res.data.message);
-      }
-    } catch (err) {
-      console.log(err);
-      message.error("Something went wrong");
-    }
-  };
 
   const GetUsers = async (page = 1, limit = pageSize) => {
     try {
@@ -84,56 +67,27 @@ function User() {
     }
   };
 
-  const EditUser = async (values) => {
-    try {
-      const res = await axios.put("/user/userUpdate", values);
-
-      if (res.data.status) {
-        message.success(res.data.message);
-        form.resetFields();
-        setOpen(false);
-        GetUsers(currentPage, pageSize);
-      } else {
-        message.error(res.data.message);
-      }
-    } catch (err) {
-      console.error(err);
-      message.error("Something went wrong");
-    }
-  };
-
   const Edit = (record) => {
-    let oldPassword = "";
+    const token = localStorage.getItem("token");
+    if (!token) {
+      message.error("Token not found");
+      return;
+    }
+    const decoded = jwtDecode(token);
+    const currentUserEmail = decoded.email;
 
-    Modal.confirm({
-      title: "Verify Your Password",
-      content: (
-        <Input.Password
-          placeholder="Enter your current password"
-          onChange={(e) => (oldPassword = e.target.value)}
-        />
-      ),
-      okText: "Verify",
-      cancelText: "Cancel",
-      onOk: async () => {
-        try {
-          const res = await axios.post("/user/checkPassword", {
-            id: record.id,
-            oldPassword,
-          });
-
-          if (res.data.status) {
-            form.setFieldsValue({ ...record, password: "" });
-            setOpen(true);
-          } else {
-            message.error(res.data.message);
-          }
-        } catch (err) {
-          console.error(err);
-          message.error("Verification failed");
-        }
-      },
+    if (record.email === currentUserEmail) {
+      message.warning("You cannot edit your own account from here.");
+      return;
+    }
+    form.setFieldsValue({
+      id: record.id,
+      full_name: record.full_name,
+      email: record.email,
+      role: record.role,
     });
+    form.setFieldValue("password", null);
+    setOpen(true);
   };
 
   const columns = [
@@ -155,7 +109,6 @@ function User() {
       render: (date) =>
         date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "--",
     },
-
     {
       title: "Actions",
       key: "actions",
@@ -186,6 +139,43 @@ function User() {
     GetUsers();
   }, []);
 
+  const onFinish = async (values) => {
+    try {
+      if (values.id && (!values.password || values.password.trim() === "")) {
+        delete values.password;
+      }
+      if (!values.id && (!values.password || values.password.trim() === "")) {
+        message.error("Password is required for new users");
+        return;
+      }
+
+      if (values.id) {
+        const res = await axios.put("/user/userUpdate", values);
+        if (res.data.status) {
+          message.success(res.data.message);
+          form.resetFields();
+          setOpen(false);
+          GetUsers(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
+      } else {
+        const res = await axios.post("/auth/register", values);
+        if (res.data.status) {
+          message.success(res.data.message);
+          form.resetFields();
+          setOpen(false);
+          GetUsers(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Something went wrong");
+    }
+  };
+
   return (
     <Layout>
       <Header
@@ -215,13 +205,7 @@ function User() {
           <Form
             form={form}
             layout="vertical"
-            onFinish={(values) => {
-              if (values.id) {
-                EditUser(values);
-              } else {
-                addUser(values);
-              }
-            }}
+            onFinish={onFinish}
             initialValues={{
               role: "user",
             }}
@@ -259,9 +243,30 @@ function User() {
             <Form.Item
               name="password"
               label="Password"
-              rules={[{ required: true, message: "Password is required" }]}
+              rules={[
+                !form.getFieldValue("id")
+                  ? [
+                      { required: true, message: "Password is required" },
+                      {
+                        pattern:
+                          /^(?!.*\s)(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{6,12}$/,
+                        message:
+                          "Strict Password 1 uppercase, 1 number & 1 special char and no spaces required",
+                      },
+                    ]
+                  : [
+                      {
+                        pattern:
+                          /^(?!.*\s)(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{6,12}$/,
+                        message:
+                          "Strict Password 1 uppercase, 1 number & 1 special char and no spaces required",
+                      },
+                    ],
+              ].flat()}
             >
-              <Input.Password placeholder="Enter password" />
+              <Input.Password
+                placeholder={form.getFieldValue("id") ? "" : "Enter password"}
+              />
             </Form.Item>
 
             <Form.Item>

@@ -11,6 +11,7 @@ import {
   Space,
   message,
   Popconfirm,
+  Checkbox,
 } from "antd";
 const { Search } = Input;
 import axios from "../Axios";
@@ -20,27 +21,28 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 function Todo() {
-  const [open, setOpen] = useState(false); // modal open or close
-  const [form] = Form.useForm(); // for form handling
-  const [todos, setTodos] = useState([]); // for adding todos
-  const [loading, setLoading] = useState(false); // loading indicator
-  const [total, setTotal] = useState(0); // pagination total
-  const [currentPage, setCurrentPage] = useState(1); // pagination current
-  const [editTodo, setEditTodo] = useState(null); // editing ke liye
-  const [color, setColor] = useState("all"); // color kay lia
-  const [priority, setPriority] = useState("all"); // priorty kay lia
-  const [searchText, setSearchText] = useState(""); // search kay lia
+  const [open, setOpen] = useState(false);
+  const [form] = Form.useForm();
+  const [todos, setTodos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editTodo, setEditTodo] = useState(null);
+  const [color, setColor] = useState("all");
+  const [priority, setPriority] = useState("all");
+  const [searchText, setSearchText] = useState("");
+  const [showOverdue, setShowOverdue] = useState(false);
 
   const pageSize = 8;
-  const token = localStorage.getItem("token");
 
-  const GetTodoss = async (page = 1, limit = pageSize, search = "") => {
+  const GetTodoss = async (page = 1, limit = pageSize, searchValue) => {
     try {
       setLoading(true);
+      const searchToSend = searchValue !== undefined ? searchValue : searchText;
       const res = await axios.post("/todo/read", {
         page,
         limit,
-        search,
+        search: searchToSend,
         color,
         priorty: priority,
       });
@@ -50,21 +52,57 @@ function Todo() {
         setTotal(res.data.totalTodos);
         setCurrentPage(page);
       } else {
-        message.warning("No todos found");
         setTodos([]);
+        message.warning("No todos found");
       }
     } catch (err) {
-      console.error(err);
+      console.log(err);
       message.error("Failed to fetch todos");
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchOverdueTodos = async (page = 1, limit = pageSize, searchValue) => {
+    try {
+      setLoading(true);
+      const searchToSend = searchValue !== undefined ? searchValue : searchText;
+      const res = await axios.post("/todo/overdue", {
+        page,
+        limit,
+        search: searchToSend,
+        color,
+        priorty: priority,
+      });
+
+      if (res.data.status) {
+        setTodos(res.data.data);
+        setTotal(res.data.totalOverdue);
+        setCurrentPage(page);
+      } else {
+        setTodos([]);
+        message.info(res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Failed to fetch overdue todos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showOverdue) fetchOverdueTodos();
+    else GetTodoss();
+  }, [showOverdue, color, priority]);
+
   const download = async () => {
     try {
       let allTodos = [];
+      const endpoint = showOverdue ? "/todo/overdue" : "/todo/read";
+
       for (let page = 1, moreTodos = true; moreTodos; page++) {
-        const res = await axios.post("/todo/read", {
+        const res = await axios.post(endpoint, {
           page,
           limit: 8,
           color,
@@ -87,7 +125,7 @@ function Todo() {
       }
 
       const doc = new jsPDF();
-      doc.text("Todos List", 14, 10);
+      doc.text(showOverdue ? "Overdue Todos" : "Todos List", 14, 10);
 
       const tableColumn = [
         "ID",
@@ -109,16 +147,78 @@ function Todo() {
           : "No Date",
       ]);
 
-      autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 }); // pdf may formatted table may convert karrahi hai  // jspdf-autotale library ka func hai
-      doc.save(`todos_${color}_${priority}.pdf`);
+      autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
+      doc.save(
+        showOverdue ? "overdue_todos.pdf" : `todos_${color}_${priority}.pdf`
+      );
     } catch (err) {
       message.error("Failed to download all pages");
     }
   };
 
-  useEffect(() => {
-    GetTodoss();
-  }, [color, priority]);
+  const addTodo = async (values) => {
+    try {
+      const dateSet = {
+        ...values,
+        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"),
+      };
+
+      if (editTodo) {
+        const res = await axios.put("/todo/update", {
+          id: editTodo.Id,
+          ...dateSet,
+        });
+
+        if (res.data.status) {
+          message.success("Todo updated successfully");
+          setEditTodo(null);
+          form.resetFields();
+          setOpen(false);
+          showOverdue
+            ? fetchOverdueTodos(currentPage, pageSize)
+            : GetTodoss(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
+      } else {
+        const res = await axios.post("/todo/create", dateSet);
+        if (res.data.status) {
+          message.success("Todo added successfully");
+          form.resetFields();
+          setOpen(false);
+          showOverdue
+            ? fetchOverdueTodos(currentPage, pageSize)
+            : GetTodoss(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Something went wrong!");
+    }
+  };
+
+  const TodoDelete = async (id) => {
+    if (!id) {
+      message.error("Id is required!");
+      return;
+    }
+    try {
+      const res = await axios.post("/todo/delete", { id });
+
+      if (res.data.status) {
+        message.success(res.data.message);
+        showOverdue
+          ? fetchOverdueTodos(currentPage, pageSize)
+          : GetTodoss(currentPage, pageSize);
+      } else {
+        message.error(res.data.message);
+      }
+    } catch (err) {
+      message.error("Failed to delete todo");
+    }
+  };
 
   const columns = [
     { title: "Id", dataIndex: "Id", key: "Id" },
@@ -128,8 +228,15 @@ function Todo() {
       title: "Due Date",
       dataIndex: "duedate",
       key: "duedate",
-      render: (date) =>
-        date ? dayjs(date).format("DD/MM/YYYY HH:mm:ss") : "-",
+      render: (date) => {
+        if (!date) return "-";
+        const isOverdue = dayjs().isAfter(dayjs(date), "second");
+        return (
+          <span style={{ color: isOverdue ? "red" : "black" }}>
+            {dayjs(date).format("DD/MM/YYYY HH:mm:ss")}
+          </span>
+        );
+      },
     },
     {
       title: "Color",
@@ -158,10 +265,7 @@ function Todo() {
     {
       title: "Actions",
       key: "actions",
-      render: (
-        _,
-        record // record = current row ka data
-      ) => (
+      render: (_, record) => (
         <Space>
           <Popconfirm
             title="Are you sure to delete this todo?"
@@ -192,7 +296,7 @@ function Todo() {
                 } else {
                   message.error(res.data.message);
                 }
-              } catch (err) {
+              } catch {
                 message.error("Failed to fetch todo details");
               }
             }}
@@ -203,64 +307,6 @@ function Todo() {
       ),
     },
   ];
-
-  const addTodo = async (values) => {
-    try {
-      const dateSet = {
-        ...values,
-        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"),
-      };
-
-      if (editTodo) {
-        const res = await axios.put("/todo/update", {
-          id: editTodo.Id,
-          ...dateSet,
-        });
-
-        if (res.data.status) {
-          message.success("Todo updated successfully");
-          setEditTodo(null);
-          setOpen(false);
-          GetTodoss(currentPage, pageSize);
-        } else {
-          message.error(res.data.message);
-        }
-      } else {
-        const res = await axios.post("/todo/create", dateSet, {});
-
-        if (res.data.status) {
-          message.success("Todo added successfully");
-          form.resetFields();
-          setOpen(false);
-          GetTodoss(currentPage, pageSize);
-        } else {
-          message.error(res.data.message);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      message.error("Something went wrong!");
-    }
-  };
-
-  const TodoDelete = async (id) => {
-    if (!id) {
-      message.error("Id is required!");
-      return;
-    }
-    try {
-      const res = await axios.post("/todo/delete", { id });
-
-      if (res.data.status) {
-        message.success(res.data.message);
-        GetTodoss(currentPage, pageSize);
-      } else {
-        message.error(res.data.message);
-      }
-    } catch (err) {
-      message.error("Failed to delete todo");
-    }
-  };
 
   return (
     <Layout>
@@ -273,81 +319,81 @@ function Todo() {
       >
         <div
           style={{
-            textAlign: "right",
             display: "flex",
             justifyContent: "end",
+            alignItems: "center",
+            gap: "10px",
             paddingTop: "20px",
           }}
         >
-          <Button style={{ marginRight: "20px" }} onClick={download}>
-            Download
-          </Button>
+
+          <Checkbox
+            checked={showOverdue}
+            onChange={(e) => setShowOverdue(e.target.checked)}
+          >
+            Show Overdue Only
+          </Checkbox>
+
+          <Button onClick={download}>Download</Button>
+
+          <Select
+            value={color}
+            style={{ width: 150 }}
+            onChange={(value) => setColor(value)}
+          >
+            <Select.Option value="all">All Colors</Select.Option>
+            <Select.Option value="red">Red</Select.Option>
+            <Select.Option value="green">Green</Select.Option>
+            <Select.Option value="yellow">Yellow</Select.Option>
+          </Select>
+
           <Select
             value={priority}
-            style={{ width: 120, marginRight: "20px" }}
-            onChange={(value) => {
-              setPriority(value);
-              GetTodoss(1, pageSize);
-            }}
+            style={{ width: 150 }}
+            onChange={(value) => setPriority(value)}
           >
             <Select.Option value="all">All Priorities</Select.Option>
             <Select.Option value="low">Low</Select.Option>
             <Select.Option value="medium">Medium</Select.Option>
             <Select.Option value="high">High</Select.Option>
           </Select>
-          <Select
-            value={color}
-            style={{ width: 110, marginBottom: 16, marginRight: "20px" }}
-            onChange={(value) => {
-              setColor(value);
-              GetTodoss(1, pageSize);
-            }}
-          >
-            <Select.Option value="all">All Colors</Select.Option>
-            <Select.Option value="red">Red</Select.Option>
-            <Select.Option value="yellow">Yellow</Select.Option>
-            <Select.Option value="green">Green</Select.Option>
-          </Select>
+
           <Search
-            placeholder="Search todos..."
+            placeholder="Search Todos..."
             allowClear
-            onChange={(e) =>{setSearchText(e.target.value);  GetTodoss(1, pageSize, e.target.value);}}
-            style={{ width: 300, marginRight: "20px" }}
+            value={searchText}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchText(value);
+              showOverdue
+                ? fetchOverdueTodos(1, pageSize, value)
+                : GetTodoss(1, pageSize, value);
+            }}
+            style={{ width: 300 }}
             enterButton={false}
           />
 
-          <Button
-            type="primary"
-            onClick={() => {
-              setEditTodo(null);
-              setOpen(true);
-              form.resetFields();
-            }}
-          >
+          <Button type="primary" onClick={() => setOpen(true)}>
             Add Todo
           </Button>
         </div>
 
         <Modal
-          title={editTodo ? "Edit Todo" : "Add Todo"}
           open={open}
-          closable={false}
-          footer={null}
-          afterClose={() => {
+          title={editTodo ? "Edit Todo" : "Add Todo"}
+          onCancel={() => {
+            setOpen(false);
             setEditTodo(null);
             form.resetFields();
           }}
+          okText={editTodo ? "Update" : "Add"}
+          onOk={() => form.submit()}
         >
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={addTodo}
-            initialValues={{ color: "red", priorty: "medium" }}
-          >
+          <Form form={form} layout="vertical" onFinish={addTodo} initialValues={{ color: "red", priorty: "medium" }}>
             <Form.Item
               name="title"
               label="Title"
-              rules={[{ required: true, message: "Title is required" }]}
+              rules={[{ required: true, message: "Please enter title" }]}
             >
               <Input />
             </Form.Item>
@@ -355,81 +401,62 @@ function Todo() {
             <Form.Item
               name="description"
               label="Description"
-              rules={[{ required: true, message: "Description is required" }]}
+              rules={[{ required: true, message: "Please enter description" }]}
             >
               <Input.TextArea rows={3} />
             </Form.Item>
 
-            <Form.Item
-              name="duedate"
-              label="Due Date"
-              rules={[{ required: true, message: "Due Date is required" }]}
-            >
-              <DatePicker showTime style={{ width: "100%" }} />
+            <Form.Item name="duedate" label="Due Date">
+              <DatePicker
+                showTime
+                format="YYYY-MM-DD HH:mm:ss"
+                style={{ width: "100%" }}
+              />
             </Form.Item>
 
             <Form.Item name="color" label="Color">
               <Select>
                 <Select.Option value="red">Red</Select.Option>
-                <Select.Option value="yellow">Yellow</Select.Option>
                 <Select.Option value="green">Green</Select.Option>
+                <Select.Option value="yellow">Yellow</Select.Option>
               </Select>
             </Form.Item>
 
             <Form.Item name="priorty" label="Priority">
-              <Select
-                options={[
-                  { value: "high", label: "High" },
-                  { value: "medium", label: "Medium" },
-                  { value: "low", label: "Low" },
-                ]}
-              />
-            </Form.Item>
-
-            <Form.Item>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <Button
-                  type="default"
-                  htmlType="button"
-                  onClick={() => setOpen(false)}
-                  style={{ flex: 1 }}
-                >
-                  Cancel
-                </Button>
-                <Button type="primary" htmlType="submit" style={{ flex: 1 }}>
-                  Save
-                </Button>
-              </div>
+              <Select>
+                <Select.Option value="low">Low</Select.Option>
+                <Select.Option value="medium">Medium</Select.Option>
+                <Select.Option value="high">High</Select.Option>
+              </Select>
             </Form.Item>
           </Form>
         </Modal>
       </Header>
 
-      <hr />
-
       <Content
         style={{
           padding: "20px",
           background: "#fff",
-          minHeight: "80vh",
+          minHeight: "82vh",
           borderRadius: "8px",
         }}
       >
         <Table
+          dataSource={todos}
           columns={columns}
-          dataSource={todos.map((todo, index) => ({
-            ...todo,
-            key: todo.Id ?? index,
-          }))}
+          rowKey="Id"
           loading={loading}
           pagination={{
             current: currentPage,
-            pageSize: pageSize,
-            total: total,
+            total,
+            pageSize,
+            onChange: (page) => {
+              showOverdue
+                ? fetchOverdueTodos(page, pageSize)
+                : GetTodoss(page, pageSize);
+            },
             showSizeChanger: false,
-            onChange: (page) => GetTodoss(page, pageSize),
           }}
-          style={{ padding: "6px" }}
         />
       </Content>
     </Layout>

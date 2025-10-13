@@ -5,18 +5,6 @@ import Login from "./Routes/Login/login";
 import Signup from "./Routes/Signup/Singup";
 import ProtectedRoute from "./Routes/ProtectedRoute";
 import NotFound from "./notFound";
-import axios from "axios";
-
-axios.interceptors.response.use(
-  (res) => {
-    if (res.data && res.data.redirect) {
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
-    return res;
-  },
-  (err) => Promise.reject(err)
-);
 
 function App() {
   return (
