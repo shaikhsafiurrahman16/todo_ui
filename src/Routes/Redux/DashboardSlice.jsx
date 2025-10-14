@@ -1,27 +1,39 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "../Axios";
+import { message } from "antd";
 
-// Async thunk for fetching dashboard data
+// Async thunks
 export const fetchDashboardData = createAsyncThunk(
-  "dashboard/fetchData",
+  "dashboard/fetchDashboardData",
   async (_, { rejectWithValue }) => {
     try {
-      const completedTodos = await axios.get("/dashboard/completedTodo");
-      const pendingTodos = await axios.get("/dashboard/pendingTodo");
-      const alltodos = await axios.post("/todo/read", { page: 1, limit: 10000 });
-      const reportRes = await axios.post("/dashboard/report", {});
+      const token = localStorage.getItem("token");
+      if (!token) {
+        message.error("Unauthorized! Please login again.");
+        return rejectWithValue("Unauthorized");
+      }
+
+      const [completedRes, pendingRes, allRes, reportRes] = await Promise.all([
+        axios.get("/dashboard/completedTodo"),
+        axios.get("/dashboard/pendingTodo"),
+        axios.post("/todo/read", { page: 1, limit: 10000 }),
+        axios.post("/dashboard/report", {}),
+      ]);
+
+      const chartData = Object.keys(reportRes.data.data).map((month) => ({
+        month,
+        todos: reportRes.data.data[month],
+      }));
 
       return {
-        completed: completedTodos.data.data,
-        pending: pendingTodos.data.data,
-        all: alltodos.data.totalTodos,
-        chart: Object.keys(reportRes.data.data).map((month) => ({
-          month,
-          todos: reportRes.data.data[month],
-        })),
+        completed: completedRes.data.data,
+        pending: pendingRes.data.data,
+        all: allRes.data.totalTodos,
+        chart: chartData,
       };
-    } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
+    } catch (err) {
+      message.error("Fail to fetch todo counts");
+      return rejectWithValue(err.message);
     }
   }
 );
@@ -41,7 +53,6 @@ const dashboardSlice = createSlice({
     builder
       .addCase(fetchDashboardData.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(fetchDashboardData.fulfilled, (state, action) => {
         state.loading = false;

@@ -1,8 +1,14 @@
-import { configureStore } from "@reduxjs/toolkit";
-import dashboardSlice from "./DashboardSlice.jsx";
+import {configureStore} from "@reduxjs/toolkit";
+import todoReducer from './TodoSlice'
+import userReducer from './UserSlice'
+import dashboardSlice from './DashboardSlice'
+import authSlice from "./AuthSlice";
 
 export const store = configureStore({
-  reducer: {
-    dashboard: dashboardSlice,
-  },
-});
+    reducer: {
+        todo: todoReducer,
+        user: userReducer,
+        dashboard: dashboardSlice,
+        auth: authSlice, 
+    }
+})

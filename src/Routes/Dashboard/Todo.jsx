@@ -1,4 +1,12 @@
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  getTodos,
+  OverdueTodos,
+  addTodo as addTodoThunk,
+  deleteTodo as deleteTodoThunk,
+  getTodoById, 
+} from "../Redux/TodoSlice";
 import {
   Table,
   Button,
@@ -13,19 +21,21 @@ import {
   Popconfirm,
   Checkbox,
 } from "antd";
-const { Search } = Input;
-import axios from "../Axios";
 import { Header, Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const { Search } = Input;
+
 function Todo() {
+  const dispatch = useDispatch();
+
+  const { todos = [], total = 0, loading = false, selectedTodo = null } =
+    useSelector((state) => state.todo || {});
+
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
-  const [todos, setTodos] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [editTodo, setEditTodo] = useState(null);
   const [color, setColor] = useState("all");
@@ -35,87 +45,105 @@ function Todo() {
 
   const pageSize = 8;
 
-  const GetTodoss = async (page = 1, limit = pageSize, searchValue) => {
-    try {
-      setLoading(true);
-      const searchToSend = searchValue !== undefined ? searchValue : searchText;
-      const res = await axios.post("/todo/read", {
-        page,
-        limit,
-        search: searchToSend,
-        color,
-        priorty: priority,
-      });
-
-      if (res.data.status) {
-        setTodos(res.data.data);
-        setTotal(res.data.totalTodos);
-        setCurrentPage(page);
-      } else {
-        setTodos([]);
-        message.warning("No todos found");
-      }
-    } catch (err) {
-      console.log(err);
-      message.error("Failed to fetch todos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchOverdueTodos = async (page = 1, limit = pageSize, searchValue) => {
-    try {
-      setLoading(true);
-      const searchToSend = searchValue !== undefined ? searchValue : searchText;
-      const res = await axios.post("/todo/overdue", {
-        page,
-        limit,
-        search: searchToSend,
-        color,
-        priorty: priority,
-      });
-
-      if (res.data.status) {
-        setTodos(res.data.data);
-        setTotal(res.data.totalOverdue);
-        setCurrentPage(page);
-      } else {
-        setTodos([]);
-        message.info(res.data.message);
-      }
-    } catch (err) {
-      console.error(err);
-      message.error("Failed to fetch overdue todos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (showOverdue) fetchOverdueTodos();
-    else GetTodoss();
+    fetchPage(1);
   }, [showOverdue, color, priority]);
+
+  const fetchPage = (page = 1, search = searchText) => {
+    setCurrentPage(page);
+    const params = { page, search, color, priority };
+    if (showOverdue) {
+      dispatch(OverdueTodos(params));
+    } else {
+      dispatch(getTodos(params));
+    }
+  };
+
+  const handlePageChange = (page) => {
+    fetchPage(page, searchText);
+  };
+
+
+  const AddOrEdit = async (values) => {
+    try {
+      const payload = {
+        ...values,
+        duedate: values.duedate
+          ? dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss")
+          : null,
+      };
+      await dispatch(
+        addTodoThunk({
+          id: editTodo?.Id,
+          values: payload,
+        })
+      ).unwrap();
+
+      message.success(editTodo ? "Todo updated" : "Todo added");
+      setOpen(false);
+      setEditTodo(null);
+      form.resetFields();
+      fetchPage(currentPage);
+    } catch (err) {
+      message.error(err?.message || "Failed to save todo");
+    }
+  };
+
+  const Delete = async (id) => {
+    try {
+      await dispatch(deleteTodoThunk(id)).unwrap();
+      message.success("Todo deleted");
+      fetchPage(currentPage);
+    } catch (err) {
+      message.error(err?.message || "Failed to delete todo");
+    }
+  };
+
+  const Edit = async (id) => {
+    try {
+      const res = await dispatch(getTodoById(id)).unwrap(); // 👈 Redux call
+      if (res.status) {
+        const todo = res.data;
+        setEditTodo(todo);
+        form.setFieldsValue({
+          ...todo,
+          duedate: todo.duedate ? dayjs(todo.duedate) : null,
+        });
+        setOpen(true);
+      } else {
+        message.error(res.message || "Failed to fetch todo");
+      }
+    } catch (err) {
+      message.error("Failed to fetch todo details");
+    }
+  };
 
   const download = async () => {
     try {
       let allTodos = [];
       const endpoint = showOverdue ? "/todo/overdue" : "/todo/read";
-
-      for (let page = 1, moreTodos = true; moreTodos; page++) {
-        const res = await axios.post(endpoint, {
-          page,
-          limit: 8,
-          color,
-          priorty: priority,
-          search: searchText,
-        });
-
-        const data = res.data.data || [];
-        if (res.data.status && data.length > 0) {
-          allTodos.push(...data);
-          moreTodos = data.length === 8;
+      for (let page = 1, more = true; more; page++) {
+        const res = await fetch(
+          endpoint,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              page,
+              limit: pageSize,
+              color,
+              priorty: priority,
+              search: searchText,
+            }),
+          }
+        );
+        const data = await res.json();
+        const todos = data.data || [];
+        if (data.status && todos.length > 0) {
+          allTodos.push(...todos);
+          more = todos.length === pageSize;
         } else {
-          moreTodos = false;
+          more = false;
         }
       }
 
@@ -126,7 +154,6 @@ function Todo() {
 
       const doc = new jsPDF();
       doc.text(showOverdue ? "Overdue Todos" : "Todos List", 14, 10);
-
       const tableColumn = [
         "ID",
         "Title",
@@ -135,7 +162,6 @@ function Todo() {
         "Priority",
         "Due Date",
       ];
-
       const tableRows = allTodos.map((todo) => [
         todo.Id,
         todo.title,
@@ -146,77 +172,12 @@ function Todo() {
           ? dayjs(todo.duedate).format("DD-MM-YYYY hh:mm:ss")
           : "No Date",
       ]);
-
       autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
       doc.save(
         showOverdue ? "overdue_todos.pdf" : `todos_${color}_${priority}.pdf`
       );
     } catch (err) {
       message.error("Failed to download all pages");
-    }
-  };
-
-  const addTodo = async (values) => {
-    try {
-      const dateSet = {
-        ...values,
-        duedate: dayjs(values.duedate).format("YYYY-MM-DD HH:mm:ss"),
-      };
-
-      if (editTodo) {
-        const res = await axios.put("/todo/update", {
-          id: editTodo.Id,
-          ...dateSet,
-        });
-
-        if (res.data.status) {
-          message.success("Todo updated successfully");
-          setEditTodo(null);
-          form.resetFields();
-          setOpen(false);
-          showOverdue
-            ? fetchOverdueTodos(currentPage, pageSize)
-            : GetTodoss(currentPage, pageSize);
-        } else {
-          message.error(res.data.message);
-        }
-      } else {
-        const res = await axios.post("/todo/create", dateSet);
-        if (res.data.status) {
-          message.success("Todo added successfully");
-          form.resetFields();
-          setOpen(false);
-          showOverdue
-            ? fetchOverdueTodos(currentPage, pageSize)
-            : GetTodoss(currentPage, pageSize);
-        } else {
-          message.error(res.data.message);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      message.error("Something went wrong!");
-    }
-  };
-
-  const TodoDelete = async (id) => {
-    if (!id) {
-      message.error("Id is required!");
-      return;
-    }
-    try {
-      const res = await axios.post("/todo/delete", { id });
-
-      if (res.data.status) {
-        message.success(res.data.message);
-        showOverdue
-          ? fetchOverdueTodos(currentPage, pageSize)
-          : GetTodoss(currentPage, pageSize);
-      } else {
-        message.error(res.data.message);
-      }
-    } catch (err) {
-      message.error("Failed to delete todo");
     }
   };
 
@@ -242,12 +203,12 @@ function Todo() {
       title: "Color",
       dataIndex: "color",
       key: "color",
-      render: (color) => {
-        const textColor = color === "yellow" ? "#000" : "#fff";
+      render: (col) => {
+        const textColor = col === "yellow" ? "#000" : "#fff";
         return (
           <div
             style={{
-              backgroundColor: color,
+              backgroundColor: col,
               padding: "5px 10px",
               borderRadius: "15px",
               color: textColor,
@@ -256,7 +217,7 @@ function Todo() {
               minWidth: "60px",
             }}
           >
-            {color.charAt(0).toUpperCase() + color.slice(1)}
+            {col ? col.charAt(0).toUpperCase() + col.slice(1) : "-"}
           </div>
         );
       },
@@ -269,7 +230,7 @@ function Todo() {
         <Space>
           <Popconfirm
             title="Are you sure to delete this todo?"
-            onConfirm={() => TodoDelete(record.Id)}
+            onConfirm={() => Delete(record.Id)}
             okText="Yes"
             cancelText="No"
           >
@@ -277,36 +238,20 @@ function Todo() {
               Delete
             </Button>
           </Popconfirm>
-          <Button
-            type="text"
-            onClick={async () => {
-              try {
-                const res = await axios.post("/todo/getTodoById", {
-                  id: record.Id,
-                });
 
-                if (res.data.status) {
-                  const todo = res.data.data;
-                  setEditTodo(todo);
-                  form.setFieldsValue({
-                    ...todo,
-                    duedate: todo.duedate ? dayjs(todo.duedate) : null,
-                  });
-                  setOpen(true);
-                } else {
-                  message.error(res.data.message);
-                }
-              } catch {
-                message.error("Failed to fetch todo details");
-              }
-            }}
-          >
+          <Button type="text" onClick={() => Edit(record.Id)}>
             Edit
           </Button>
         </Space>
       ),
     },
   ];
+
+  const searchValue = (e) => {
+    const value = e.target.value;
+    setSearchText(value);
+    fetchPage(1, value);
+  };
 
   return (
     <Layout>
@@ -326,10 +271,11 @@ function Todo() {
             paddingTop: "20px",
           }}
         >
-
           <Checkbox
             checked={showOverdue}
-            onChange={(e) => setShowOverdue(e.target.checked)}
+            onChange={(e) => {
+              setShowOverdue(e.target.checked);
+            }}
           >
             Show Overdue Only
           </Checkbox>
@@ -339,7 +285,7 @@ function Todo() {
           <Select
             value={color}
             style={{ width: 150 }}
-            onChange={(value) => setColor(value)}
+            onChange={(c) => setColor(c)}
           >
             <Select.Option value="all">All Colors</Select.Option>
             <Select.Option value="red">Red</Select.Option>
@@ -350,7 +296,7 @@ function Todo() {
           <Select
             value={priority}
             style={{ width: 150 }}
-            onChange={(value) => setPriority(value)}
+            onChange={(p) => setPriority(p)}
           >
             <Select.Option value="all">All Priorities</Select.Option>
             <Select.Option value="low">Low</Select.Option>
@@ -362,18 +308,19 @@ function Todo() {
             placeholder="Search Todos..."
             allowClear
             value={searchText}
-            onChange={(e) => {
-              const value = e.target.value;
-              setSearchText(value);
-              showOverdue
-                ? fetchOverdueTodos(1, pageSize, value)
-                : GetTodoss(1, pageSize, value);
-            }}
+            onChange={searchValue}
             style={{ width: 300 }}
             enterButton={false}
           />
 
-          <Button type="primary" onClick={() => setOpen(true)}>
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditTodo(null);
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
             Add Todo
           </Button>
         </div>
@@ -389,7 +336,12 @@ function Todo() {
           okText={editTodo ? "Update" : "Add"}
           onOk={() => form.submit()}
         >
-          <Form form={form} layout="vertical" onFinish={addTodo} initialValues={{ color: "red", priorty: "medium" }}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={AddOrEdit}
+            initialValues={{ color: "red", priorty: "medium" }}
+          >
             <Form.Item
               name="title"
               label="Title"
@@ -401,7 +353,9 @@ function Todo() {
             <Form.Item
               name="description"
               label="Description"
-              rules={[{ required: true, message: "Please enter description" }]}
+              rules={[
+                { required: true, message: "Please enter description" },
+              ]}
             >
               <Input.TextArea rows={3} />
             </Form.Item>
@@ -450,11 +404,7 @@ function Todo() {
             current: currentPage,
             total,
             pageSize,
-            onChange: (page) => {
-              showOverdue
-                ? fetchOverdueTodos(page, pageSize)
-                : GetTodoss(page, pageSize);
-            },
+            onChange: handlePageChange,
             showSizeChanger: false,
           }}
         />
