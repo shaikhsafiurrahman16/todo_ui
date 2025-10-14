@@ -4,14 +4,29 @@ import DashboardLayout from "./Routes/Dashboard/DasboardLayout";
 import Login from "./Routes/Login/login";
 import ProtectedRoute from "./Routes/ProtectedRoute";
 import NotFound from "./notFound";
+import PublicRoute from "./Routes/PublicRoute";
 
 function App() {
   return (
     <>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
           <Route
             path="/app/*"
             element={

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   Layout,
@@ -11,42 +11,60 @@ import {
   Popconfirm,
   Space,
 } from "antd";
+import axios from "../Axios";
 import { Header, Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
 import { jwtDecode } from "jwt-decode";
-import { useDispatch, useSelector } from "react-redux";
-import { getUsers, deleteUser, addUser } from "../Redux/UserSlice";
 
 function User() {
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
 
   const pageSize = 8;
-  const dispatch = useDispatch();
-  const { users, total, loading } = useSelector((state) => state.user);
 
-  const GetUsers = (page = 1, limit = pageSize) => {
-    dispatch(getUsers({ page, limit }));
-    setCurrentPage(page);
+  const GetUsers = async (page = 1, limit = pageSize) => {
+    try {
+      setLoading(true);
+      const res = await axios.post("/user/userRead", { page, limit });
+      console.log("Users from backend:", res.data.data);
+      if (res.data.status) {
+        setUsers(res.data.data);
+        setTotal(res.data.totalUsers);
+        setCurrentPage(page);
+      } else {
+        alert(res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const userDelete = (id) => {
+  const userDelete = async (id) => {
     if (!id) {
       message.error("Id is required!");
       return;
     }
-    dispatch(deleteUser(id))
-      .unwrap()
-      .then((res) => {
-        if (res.status) {
-          message.success(res.message);
-          GetUsers(currentPage, pageSize);
-        } else {
-          message.error(res.message);
-        }
-      })
-      .catch(() => message.error("Failed to delete user"));
+    try {
+      const res = await axios.delete("/user/userDelete", {
+        data: { id },
+      });
+
+      if (res.data.status) {
+        message.success(res.data.message);
+        GetUsers(currentPage, pageSize);
+      } else {
+        message.error(res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Failed to delete user");
+    }
   };
 
   const Edit = (record) => {
@@ -72,34 +90,6 @@ function User() {
     setOpen(true);
   };
 
-  useEffect(() => {
-    GetUsers();
-  }, []);
-
-  const onFinish = (values) => {
-    if (values.id && (!values.password || values.password.trim() === "")) {
-      delete values.password;
-    }
-    if (!values.id && (!values.password || values.password.trim() === "")) {
-      message.error("Password is required for new users");
-      return;
-    }
-
-    dispatch(addUser(values))
-      .unwrap()
-      .then((res) => {
-        if (res.status) {
-          message.success(res.message);
-          form.resetFields();
-          setOpen(false);
-          GetUsers(currentPage, pageSize);
-        } else {
-          message.error(res.message);
-        }
-      })
-      .catch(() => message.error("Something went wrong"));
-  };
-
   const columns = [
     { title: "Id", dataIndex: "id", key: "Id" },
     { title: "Role", dataIndex: "role", key: "role" },
@@ -122,25 +112,69 @@ function User() {
     {
       title: "Actions",
       key: "actions",
-      render: (_, record) => (
-        <Space>
-          <Popconfirm
-            title="Are you sure to delete this user?"
-            onConfirm={() => userDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="text" danger>
-              Delete
+      render: (_, record) => {
+        console.log("Record clicked:", record);
+        return (
+          <Space>
+            <Popconfirm
+              title="Are you sure to delete this user?"
+              onConfirm={() => userDelete(record.id)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button type="text" danger>
+                Delete
+              </Button>
+            </Popconfirm>
+            <Button type="text" onClick={() => Edit(record)}>
+              Edit
             </Button>
-          </Popconfirm>
-          <Button type="text" onClick={() => Edit(record)}>
-            Edit
-          </Button>
-        </Space>
-      ),
+          </Space>
+        );
+      },
     },
   ];
+
+  useEffect(() => {
+    GetUsers();
+  }, []);
+
+  const onFinish = async (values) => {
+    try {
+      if (values.id && (!values.password || values.password.trim() === "")) {
+        delete values.password;
+      }
+      if (!values.id && (!values.password || values.password.trim() === "")) {
+        message.error("Password is required for new users");
+        return;
+      }
+
+      if (values.id) {
+        const res = await axios.put("/user/userUpdate", values);
+        if (res.data.status) {
+          message.success(res.data.message);
+          form.resetFields();
+          setOpen(false);
+          GetUsers(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
+      } else {
+        const res = await axios.post("/auth/register", values);
+        if (res.data.status) {
+          message.success(res.data.message);
+          form.resetFields();
+          setOpen(false);
+          GetUsers(currentPage, pageSize);
+        } else {
+          message.error(res.data.message);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      message.error("Something went wrong");
+    }
+  };
 
   return (
     <Layout>
@@ -172,7 +206,9 @@ function User() {
             form={form}
             layout="vertical"
             onFinish={onFinish}
-            initialValues={{ role: "user" }}
+            initialValues={{
+              role: "user",
+            }}
           >
             <Form.Item name="id" hidden>
               <Input />

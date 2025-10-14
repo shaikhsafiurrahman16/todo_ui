@@ -4,25 +4,23 @@ import { useDispatch, useSelector } from "react-redux";
 import { login } from "./Redux/userSlice";
 
 
-function ProtectedRoute({ children, role }) {
+function PublicRoute({ children }) {
   const token = localStorage.getItem("token");
   const dipatch = useDispatch();
   if (!token) {
-    return <Navigate to="/login" />;
-  }
-
-  try {
+    return children;
+  } else {
+    try {
     const decoded = jwtDecode(token);
-    console.log(decoded)
     dipatch(login({...decoded}))
     const data = useSelector( (state) => state.user)
-
-    return children;    
+    return <Navigate to="/app/dashboard" />;   
   } catch (err) {
     console.log(err)
     localStorage.removeItem("token");
-    return <Navigate to="/login" />;
+    return children;
+  }
   }
 }
 
-export default ProtectedRoute;
+export default PublicRoute;
