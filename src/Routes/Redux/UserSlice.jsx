@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+const token = localStorage.getItem("token");
+
 const initialState = {
   name: null,
   email: null,
@@ -25,9 +27,12 @@ const userSlice = createSlice({
       state.role = null;
       state.token = null;
       state.isLogin = false;
+      localStorage.removeItem("token")
     },
   },
 });
+
+console.log(userSlice.reducer)
 
 export const { login, logout } = userSlice.actions;
 export default userSlice.reducer;

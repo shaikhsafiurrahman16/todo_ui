@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { login } from "./Redux/userSlice";
 
 
-function ProtectedRoute({ children, role }) {
+function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
   const dipatch = useDispatch();
   if (!token) {
@@ -13,10 +13,8 @@ function ProtectedRoute({ children, role }) {
 
   try {
     const decoded = jwtDecode(token);
-    console.log(decoded)
     dipatch(login({...decoded}))
     const data = useSelector( (state) => state.user)
-
     return children;    
   } catch (err) {
     console.log(err)
